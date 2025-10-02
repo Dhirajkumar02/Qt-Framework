@@ -24,3 +24,23 @@ int main(int argc, char *argv[])
     // This keeps the application running and responding to user events (mouse, paint, etc.)
     return app.exec();
 }
+
+
+/*
+ * Working Flow
+
+ Start from main.cpp → main().
+
+Then QApplication initializes.
+
+MainWindow constructor runs (asks for rows/cols, generates data & heatmap).
+
+Window is shown.
+
+Event loop (app.exec()) starts.
+
+Inside loop → Qt automatically calls paintEvent() for drawing and mousePressEvent() on clicks.
+
+When window is closed → program exits.
+
+ */
