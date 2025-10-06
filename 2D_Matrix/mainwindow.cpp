@@ -9,18 +9,22 @@ MainWindow::MainWindow(QWidget *parent)
     , rows(60), cols(360)   // Initialize grid size (60 rows × 360 columns)
 {
     // Random number generator for filling zValues
-    std::random_device rd;
+    /*std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(1, 100);  // Random values in [1, 100]
+    std::uniform_int_distribution<> dis(1, 100);*/  // Random values in [1, 100]
 
     // Resize zValues to create a 2D matrix (rows × cols)
+
+    int x = 0;
     zValues.resize(rows);
 
     for (int i = 0; i < rows; ++i) {
         zValues[i].resize(cols);
         for (int j = 0; j < cols; ++j) {
             // Assign random integer (1–100) to each cell
-            zValues[i][j] = dis(gen);
+            zValues[i][j] =x++;  // dis(gen);
+            if(x > 100)
+                x = 0;
         }
     }
 }
@@ -32,75 +36,116 @@ MainWindow::~MainWindow(){}
 // Paint grid of squares
 void MainWindow::paintEvent(QPaintEvent *event)
 {
-    Q_UNUSED(event);   // Avoid unused parameter warning
+    Q_UNUSED(event);
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing); // Smooth drawing
+    painter.setRenderHint(QPainter::Antialiasing);
 
-    int w = width();   // Current window width
-    int h = height();  // Current window height
+    int w = width();
+    int h = height();
 
-    // Calculate cell size (so that all rows/columns fit the window)
-    double cellWidth = double(w) / cols;
-    double cellHeight = double(h) / rows;
+    // --- Define your logical grid size ---
+    int rowsToDraw = rows;   // 60
+    int colsToDraw = cols;   // 360
 
-    // Draw all cells in the grid
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            // Rectangle for each cell (x, y, width, height)
-            QRectF rect(j * cellWidth, i * cellHeight, cellWidth, cellHeight);
+    // --- Cell size (you can adjust scale) ---
+    double cellWidth = 4;    // width of one cell in pixels
+    double cellHeight = 4;   // height of one cell in pixels
 
-            int z = zValues[i][j];       // Value stored in this cell
-            double intensity = z / 100.0; // Normalize to [0,1] (for brightness)
+    double gridWidth = colsToDraw * cellWidth;
+    double gridHeight = rowsToDraw * cellHeight;
+
+    // --- Center position ---
+    double offsetX = (w - gridWidth) / 2.0;
+    double offsetY = (h - gridHeight) / 2.0;
+
+    // --- Draw background ---
+    painter.fillRect(offsetX, offsetY, gridWidth, gridHeight, Qt::white);
+
+    // --- Draw grid cells ---
+    for (int i = 0; i < rowsToDraw; ++i) {
+        for (int j = 0; j < colsToDraw; ++j) {
+            int displayRow = rowsToDraw - 1 - i; // invert Y (bottom-up)
+            QRectF rect(offsetX + j * cellWidth,
+                        offsetY + displayRow * cellHeight,
+                        cellWidth, cellHeight);
+
+            int z = zValues[i][j];
+            double intensity = z / 100.0;
 
             QColor color;
-            // Choose color based on z value
-            if (z < 40) {
-                // Low values → green shades
+            if (z < 40)
                 color = QColor::fromRgbF(0.0, intensity, 0.0);
-            }
-            else if (z < 70) {
-                // Medium values → yellow shades (Red + Green)
+            else if (z < 70)
                 color = QColor::fromRgbF(intensity, intensity, 0.0);
-            }
-            else {
-                // High values → red shades
+            else
                 color = QColor::fromRgbF(intensity, 0.0, 0.0);
-            }
 
-            // Apply brush color and thin border for each cell
             painter.setBrush(color);
-            painter.setPen(QPen(Qt::black, 0.3));
+            painter.setPen(Qt::NoPen);
             painter.drawRect(rect);
         }
     }
-}
 
+    // --- Draw coordinate axes ---
+    painter.setPen(QPen(Qt::black, 2));
+
+    // X-axis (bottom)
+    painter.drawLine(offsetX, offsetY + gridHeight, offsetX + gridWidth, offsetY + gridHeight);
+    // Y-axis (left)
+    painter.drawLine(offsetX, offsetY, offsetX, offsetY + gridHeight);
+
+    // --- Axis labels ---
+    painter.setPen(Qt::black);
+    painter.setFont(QFont("Arial", 8));
+
+    int xStep = 60;
+    for (int x = 0; x <= colsToDraw; x += xStep) {
+        double px = offsetX + x * cellWidth;
+        painter.drawText(px - 10, offsetY + gridHeight + 15, QString::number(x));
+    }
+
+    int yStep = 10;
+    for (int y = 0; y <= rowsToDraw; y += yStep) {
+        double py = offsetY + gridHeight - y * cellHeight;
+        painter.drawText(offsetX - 25, py + 3, QString::number(y));
+    }
+
+    // --- Axis titles ---
+    painter.setFont(QFont("Arial", 10, QFont::Bold));
+    painter.drawText(offsetX + gridWidth + 10, offsetY + gridHeight + 10, "X");
+    painter.drawText(offsetX - 15, offsetY - 10, "Y");
+}
 
 // Handle mouse clicks (detect which cell was clicked)
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
-    int w = width();   // Window width
-    int h = height();  // Window height
+    int w = width();
+    int h = height();
 
-    // Calculate cell width & height
-    double cellW = double(w) / cols;
-    double cellH = double(h) / rows;
+    double cellWidth = 4;
+    double cellHeight = 4;
 
-    // Find clicked cell index (j = col, i = row)
-    int j = event->pos().x() / cellW;  // Column index
-    int i = event->pos().y() / cellH;  // Row index
+    double gridWidth = cols * cellWidth;
+    double gridHeight = rows * cellHeight;
 
-    // Check if click is inside valid grid bounds
+    double offsetX = (w - gridWidth) / 2.0;
+    double offsetY = (h - gridHeight) / 2.0;
+
+    double x = event->pos().x();
+    double y = event->pos().y();
+
+    // Check if click is inside centered grid
+    if (x < offsetX || x > offsetX + gridWidth ||
+        y < offsetY || y > offsetY + gridHeight)
+        return;
+
+    int j = (x - offsetX) / cellWidth;
+    int i = rows - 1 - ((y - offsetY) / cellHeight);
+
     if (i >= 0 && i < rows && j >= 0 && j < cols) {
-        int z = zValues[i][j];  // Get Z value at clicked cell
-
-        // Prepare message with X, Y, Z info
-        QString msg = QString("X = %1 \nY = %2 \nZ = %3")
-                          .arg(j) // Column = X
-                          .arg(i) // Row = Y
-                          .arg(z);
-
-        // Show cell info in popup
+        int z = zValues[i][j];
+        QString msg = QString("X = %1\nY = %2\nZ = %3")
+                          .arg(j).arg(i).arg(z);
         QMessageBox::information(this, "Cell Info", msg);
     }
 }
