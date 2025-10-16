@@ -2,22 +2,30 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QWidget>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QTableWidget>
+#include <QString>
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
-QT_END_NAMESPACE
-
-class MainWindow : public QMainWindow
+class BinaryFileReader : public QWidget
 {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit BinaryFileReader(QWidget *parent = nullptr);
+
+private slots:
+    void browseFile();
+    void onOpenFileButtonClicked();
+    void processFile();
 
 private:
-    Ui::MainWindow *ui;
+    QPushButton *openButton;
+    QPushButton *processButton;
+    QLineEdit *fileNameEdit;
+    QTableWidget *table;
+    QString selectedFilePath;
 };
+
 #endif // MAINWINDOW_H
