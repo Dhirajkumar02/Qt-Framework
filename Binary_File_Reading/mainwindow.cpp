@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QDebug>
 
+
 BinaryFileReader::BinaryFileReader(QWidget *parent) : QWidget(parent)
 {
 setWindowTitle("Binary File Reader");
@@ -23,6 +24,7 @@ openButton = new QPushButton("Browse File");
 processButton = new QPushButton("Process File");
 fileNameEdit = new QLineEdit;
 fileNameEdit->setPlaceholderText("Select a .bin file");
+processButton -> setEnabled(false);
 
 table = new QTableWidget;
 table->setColumnCount(2);
@@ -45,6 +47,9 @@ mainLayout->addWidget(table);
 // --- Connections ---
 connect(openButton, &QPushButton::clicked, this, &BinaryFileReader::browseFile);
 connect(processButton, &QPushButton::clicked, this, &BinaryFileReader::processFile);
+connect(fileNameEdit, &QLineEdit::textChanged, this, [this](const QString &text){
+    processButton->setEnabled(!text.isEmpty());
+});
 }
 
 void BinaryFileReader::browseFile() {
@@ -53,26 +58,26 @@ QString filePath = QFileDialog::getOpenFileName(this, "Open Binary File", "", "B
         fileNameEdit->setText(filePath);
         selectedFilePath = filePath;
         openButton->setStyleSheet("background-color: lightgreen;");
+        processButton->setEnabled(true);
     }
 }
 
 
-// Slot for "Open File" button
-void BinaryFileReader::onOpenFileButtonClicked() {
+void BinaryFileReader::disabledProcessFileButton() {
     QString filePath = QFileDialog::getOpenFileName(this, "Open Binary File", "", "Binary Files (*.bin);;All Files (*)");
     if (!filePath.isEmpty()) {
-        selectedFilePath = filePath;
-        processButton->setEnabled(true);   // Enable "Process File"
-    } else {
-        selectedFilePath.clear();
-        processButton->setEnabled(false);  // Disable if no file selected
+        fileNameEdit -> setText(filePath);
+        processButton -> setEnabled(true);
     }
+
+
 }
 
 // Slot for "Process File" button
 void BinaryFileReader::processFile() {
     if (selectedFilePath.isEmpty()) {
-        return;  // Button should be disabled anyway
+        QMessageBox::warning(this, "Warning", "No file selected!");
+        return;
     }
 
     QFile file(selectedFilePath);
@@ -81,7 +86,8 @@ void BinaryFileReader::processFile() {
         return;
     }
 
-    table->setRowCount(0);  // Clear table
+    table->setRowCount(0);  // Clear previous data
+
     QDataStream in(&file);
     in.setByteOrder(QDataStream::LittleEndian);
 
@@ -91,36 +97,31 @@ void BinaryFileReader::processFile() {
     quint32 counter = 0;
 
     while (!in.atEnd()) {
-        // Read 4 bytes for header
-        if (file.bytesAvailable() < sizeof(quint32))
-            break;
-
+        // Read 4 bytes as potential header
         in >> headMsgID;
 
-        // Debug: print what we read
-        qDebug() << QString("Read headMsgID: 0x%1").arg(headMsgID, 8, 16, QLatin1Char('0')).toUpper();
-
         if (headMsgID == 0xEEEEEEEE) {
-            // Make sure enough bytes are available
-            if (file.bytesAvailable() < 2 * sizeof(quint32))
-                break;
+            // Read next 8 bytes (time + msgId)
+            in >> time >> msgId;
 
-            in >> time;
-            in >> msgId;
+            if (in.status() != QDataStream::Ok)
+                break;
 
             int row = table->rowCount();
             table->insertRow(row);
             table->setItem(row, 0, new QTableWidgetItem(QString::number(time)));
-            table->setItem(row, 1, new QTableWidgetItem(QString("0x%1").arg(msgId, 8, 16, QLatin1Char('0')).toUpper()));
+            table->setItem(row, 1, new QTableWidgetItem(
+                                       QString("0x%1").arg(msgId, 4, 16, QLatin1Char('0')).toUpper()
+                                       ));
 
             counter++;
         } else {
-            // Move forward by one byte to resync
+            // Move back 3 bytes to shift by 1 byte forward
             file.seek(file.pos() - 3);
         }
     }
 
     file.close();
-    qDebug() << "Total Messages Processed:" << counter;
-    QMessageBox::information(this, "Done", QString("Processed %1 messages!").arg(counter));
+    qDebug() << "Processed messages:" << counter;
+
 }
