@@ -1,5 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+#include "messages.h"
 
 #include <QWidget>
 #include <QMainWindow>
@@ -20,6 +21,8 @@ public:
     ~BinaryFileReader();
 
 private slots:
+    void setupUI();
+    void setupConnections();
     void openFile();
     void processFile();
     void skipPercentage();
@@ -34,6 +37,13 @@ private:
     QPushButton *skipButton;
     QTableWidget *table;
     quint32 skipPercent;
+
+    DLOG_HEADER strctLogHdr;
+    PSP_DATA strctPspData;
+    DWELL_DATA strctDwlData;
+    RPTS strctRpts;
+
+    void ReadWritePspData(const PSP_DATA &strctPspData);
 };
 
 #endif // MAINWINDOW_H

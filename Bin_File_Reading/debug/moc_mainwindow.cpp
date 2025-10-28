@@ -40,19 +40,25 @@ template <> constexpr inline auto BinaryFileReader::qt_create_metaobjectdata<qt_
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "BinaryFileReader",
-        "openFile",
+        "setupUI",
         "",
+        "setupConnections",
+        "openFile",
         "processFile",
         "skipPercentage"
     };
 
     QtMocHelpers::UintData qt_methods {
-        // Slot 'openFile'
+        // Slot 'setupUI'
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'processFile'
+        // Slot 'setupConnections'
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'skipPercentage'
+        // Slot 'openFile'
         QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'processFile'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'skipPercentage'
+        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -76,9 +82,11 @@ void BinaryFileReader::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
     auto *_t = static_cast<BinaryFileReader *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->openFile(); break;
-        case 1: _t->processFile(); break;
-        case 2: _t->skipPercentage(); break;
+        case 0: _t->setupUI(); break;
+        case 1: _t->setupConnections(); break;
+        case 2: _t->openFile(); break;
+        case 3: _t->processFile(); break;
+        case 4: _t->skipPercentage(); break;
         default: ;
         }
     }
@@ -104,14 +112,14 @@ int BinaryFileReader::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 5)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 5;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 5)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 3;
+        _id -= 5;
     }
     return _id;
 }
