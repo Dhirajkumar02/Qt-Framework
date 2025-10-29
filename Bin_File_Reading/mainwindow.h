@@ -8,6 +8,7 @@
 #include <QLineEdit>
 #include <QTableWidget>
 #include <QProgressBar>
+#include <QFile>
 
 namespace Ui {
     class BinaryFileReader;
@@ -24,7 +25,7 @@ private slots:
     void setupUI();
     void setupConnections();
     void openFile();
-    void processFile();
+    void analysisFile();
     void skipPercentage();
 
 private:
@@ -43,7 +44,12 @@ private:
     DWELL_DATA strctDwlData;
     RPTS strctRpts;
 
-    void ReadWritePspData(const PSP_DATA &strctPspData);
+    QString binfilePath;
+    QFile binfile;
+    QString spOutputFilePath;
+    QFile spOutputFile;
+
+    void writePspData(const PSP_DATA &strctPspData, QFile &spOutputFile);
 };
 
 #endif // MAINWINDOW_H

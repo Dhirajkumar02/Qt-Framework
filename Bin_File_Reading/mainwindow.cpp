@@ -46,7 +46,7 @@ void BinaryFileReader::setupUI()
     skipButton->setEnabled(false);
 
     // Process File
-    processButton = new QPushButton("Process File");
+    processButton = new QPushButton("Analysis File");
     processButton->setFixedWidth(120);
     processButton->setEnabled(false);
 
@@ -87,7 +87,7 @@ void BinaryFileReader::setupConnections()
 {
     connect(openFileButton, &QPushButton::clicked, this, &BinaryFileReader::openFile);
     connect(skipButton, &QPushButton::clicked, this, &BinaryFileReader::skipPercentage);
-    connect(processButton, &QPushButton::clicked, this, &BinaryFileReader::processFile);
+    connect(processButton, &QPushButton::clicked, this, &BinaryFileReader::analysisFile);
 
     // Enable process button only when a file is selected
     connect(fileNameEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
@@ -107,12 +107,12 @@ void BinaryFileReader::setupConnections()
 // -----------------------------
 void BinaryFileReader::openFile()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, "Open Binary File", "", "Binary Files (*.bin);;All Files (*)");
-    if (filePath.isEmpty())
+    binfilePath = QFileDialog::getOpenFileName(this, "Open Binary File", "", "Binary Files (*.bin);;All Files (*)");
+    if (binfilePath.isEmpty())
         return;
 
-    selectedFilePath = filePath;
-    fileNameEdit->setText(filePath);
+    //selectedFilePath = filePath;
+    fileNameEdit->setText(binfilePath);
     processButton->setEnabled(true);
 
     // Visual feedback
@@ -144,31 +144,46 @@ void BinaryFileReader::skipPercentage()
 // -----------------------------
 // Process and display the binary file
 // -----------------------------
-void BinaryFileReader::processFile()
+void BinaryFileReader::analysisFile()
 {
-    if (selectedFilePath.isEmpty()) {
+    if (binfilePath.isEmpty()) {
         QMessageBox::warning(this, "Warning", "No file selected.");
         return;
     }
 
-    QFile file(selectedFilePath);
-    if (!file.open(QIODevice::ReadOnly)) {
+    binfile.setFileName(binfilePath);
+    if (!binfile.open(QIODevice::ReadOnly)) {
         QMessageBox::critical(this, "Error", "Failed to open file!");
+        return;
+    }
+
+    // Construct output file path in the same folder as input file
+    QFileInfo fileInfo(binfilePath);
+    QString folderPath = fileInfo.absolutePath();
+    spOutputFilePath = folderPath + "/PspOutput.txt";
+
+    spOutputFile.setFileName(spOutputFilePath);
+    if (!spOutputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(nullptr, "Error", "Failed to open output file for writing");
         return;
     }
 
     table->setRowCount(0); // Clear previous data
 
-    quint64 totalSize = file.size();
+    quint64 totalSize = binfile.size();
     quint64 skipBytes = (skipPercent * totalSize) / 100;
 
-    if (!file.seek(skipBytes)) {
+    // Skip initial bytes
+    if (!binfile.seek(skipBytes)) {
         QMessageBox::critical(this, "Error", "Failed to skip bytes in file!");
-        file.close();
+        binfile.close();
         return;
     }
 
-    QDataStream in(&file);
+    // Start progress from skip percent
+    progressBar->setValue(skipPercent);
+
+    QDataStream in(&binfile);
     in.setByteOrder(QDataStream::LittleEndian);
 
     quint64 bytesReadTotal = skipBytes;
@@ -182,36 +197,32 @@ void BinaryFileReader::processFile()
 
         if (msgID32 == 0xEEEEEEEE) {
             posAfter = in.device()->pos();
-
             // Move back by the header size
             in.device()->seek(posAfter - sizeof(msgID32));
 
             // Read DLOG header
             in.readRawData(reinterpret_cast<char*>(&strctLogHdr), sizeof(DLOG_HEADER));
-
             // Read message type
             in >> msgID16;
 
             switch (msgID16) {
-                case 0xAAA1:
-                    posAfter = in.device()->pos();
-                    in.device()->seek(posAfter - sizeof(msgID16));
+            case 0xAAA1:
+                posAfter = in.device()->pos();
+                in.device()->seek(posAfter - sizeof(msgID16));
 
                 // Read DWELL data
                 in.readRawData(reinterpret_cast<char*>(&strctDwlData), sizeof(DWELL_DATA));
-                in >>strctPspData.no_of_rpt;
-                in >>strctPspData.RMS_IQ;
+                in >> strctPspData.no_of_rpt;
+                in >> strctPspData.RMS_IQ;
 
                 qDebug() << "Time:" << strctPspData.dwell_data.dTime
-                         << "No. of rpt:" <<strctPspData.no_of_rpt;
+                         << "No. of rpt:" << strctPspData.no_of_rpt;
 
-                // Read RPTS entries
-                for (int i = 0; i < strctPspData.no_of_rpt; ++i) {
-
+                for (int i = 0; i < strctPspData.no_of_rpt; ++i){
+                    // Read RPTS entries
                     in.readRawData(reinterpret_cast<char*>(&strctRpts), sizeof(RPTS));
                 }
-
-                // Insert row in table
+                // Display in table
                 if(1){
                 row = table->rowCount();
                 table->insertRow(row);
@@ -220,55 +231,47 @@ void BinaryFileReader::processFile()
                 table->setItem(row, 2, new QTableWidgetItem(QString::number(strctPspData.dwell_data.boresight)));
                 table->setItem(row, 3, new QTableWidgetItem(QString::number(strctPspData.no_of_rpt)));
                 }
-                ReadWritePspData(strctPspData);
+                writePspData(strctPspData, spOutputFile);
                 break;
+
             default:
                 qDebug() << "Message type not matched";
                 break;
             }
 
         } else {
-            // If not header, move back 3 bytes to continue search
-            if(in.atEnd()) break;
+            if (in.atEnd()) break;
             posAfter = in.device()->pos();
-            in.device()->seek(posAfter - sizeof(msgID32) -1);
+            in.device()->seek(posAfter - sizeof(msgID32) - 1);
         }
 
-        // Update progress
+        // Update progress bar relative to skipPercent
         bytesReadTotal = in.device()->pos();
-        int progressPercent = static_cast<int>((bytesReadTotal * 100) / totalSize);
-        progressPercent = qMin(progressPercent, 100);
+        int progressPercent = skipPercent + static_cast<int>(
+                                  ((bytesReadTotal - skipBytes) * (100 - skipPercent)) / (totalSize - skipBytes)
+                                  );
         progressBar->setValue(progressPercent);
 
-        qApp->processEvents();
+        qApp->processEvents(); // Keep UI responsive
     }
 
     progressBar->setValue(100);
-    file.close();
+    binfile.close();
+    spOutputFile.close();
 
     qDebug() << "Skipped first" << skipPercent << "% (" << skipBytes << " bytes)";
 }
 
-void BinaryFileReader:: ReadWritePspData(const PSP_DATA &strctPspData){
-    // Construct output file path
-    QString outputFilePath = QCoreApplication::applicationDirPath() + "/PspOutput.txt";
+void BinaryFileReader:: writePspData(const PSP_DATA &strctPspData, QFile &spOutputFile){
 
-    QFile outputFile(outputFilePath);
-    if (!outputFile.open(QIODevice::Append | QIODevice::Text)) {
-        QMessageBox::critical(nullptr, "Error", "Failed to open output file for writing");
-        return;
-    }
-
-    QTextStream out(&outputFile);
+    QTextStream out(&spOutputFile);
     out.setRealNumberPrecision(6);
     out.setRealNumberNotation(QTextStream::FixedNotation);
 
     // -------------------------
     // Write Dwell Data
     // -------------------------
-    out << "\n---------------------------------------\n";
-    out << "           PSP DWELL DATA\n";
-    out << "---------------------------------------\n";
+    out << "PSP DWELL DATA\n";
     out << "Dwell Count: " << strctPspData.dwell_data.Dwell_count << "\n";
     out << "Time (T): " << strctPspData.dwell_data.dTime << "\n";
     out << "Alpha: " << strctPspData.dwell_data.alpha << "\n";
@@ -277,10 +280,6 @@ void BinaryFileReader:: ReadWritePspData(const PSP_DATA &strctPspData){
     out << "Pitch: " << strctPspData.dwell_data.pitch << "\n";
     out << "Roll: " << strctPspData.dwell_data.roll << "\n";
 
-    out << "\n---------------------------------------\n";
-    out << "           REPORT DATA (NRPT)\n";
-    out << "---------------------------------------\n";
-    out << "Number of Reports: " << strctPspData.no_of_rpt << "\n\n";
 
     // -------------------------
     // Write Report Data
@@ -295,11 +294,8 @@ void BinaryFileReader:: ReadWritePspData(const PSP_DATA &strctPspData){
             << ", ΔAlpha: " << r.m_fDelAlpha
             << ", ΔBeta: " << r.m_fDelBeta
             << ", FilterNo: " << r.m_fFilterNo
-            << "\n";
+            << "\n\n";
     }
-
-    out << "\n---------------------------------------\n";
-
-    outputFile.close();
-    qDebug() << "PSP data written to" << outputFilePath;
+    out << "Number of Reports: " << strctPspData.no_of_rpt << "\n\n";
+    qDebug() << "PSP data written to" << spOutputFilePath;
 }

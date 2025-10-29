@@ -44,7 +44,7 @@ template <> constexpr inline auto BinaryFileReader::qt_create_metaobjectdata<qt_
         "",
         "setupConnections",
         "openFile",
-        "processFile",
+        "analysisFile",
         "skipPercentage"
     };
 
@@ -55,7 +55,7 @@ template <> constexpr inline auto BinaryFileReader::qt_create_metaobjectdata<qt_
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'openFile'
         QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'processFile'
+        // Slot 'analysisFile'
         QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'skipPercentage'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
@@ -85,7 +85,7 @@ void BinaryFileReader::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 0: _t->setupUI(); break;
         case 1: _t->setupConnections(); break;
         case 2: _t->openFile(); break;
-        case 3: _t->processFile(); break;
+        case 3: _t->analysisFile(); break;
         case 4: _t->skipPercentage(); break;
         default: ;
         }
