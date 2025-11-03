@@ -6,9 +6,10 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
-#include <QTableWidget>
+//#include <QTableWidget>
 #include <QProgressBar>
 #include <QFile>
+#include <QCheckBox>
 
 namespace Ui {
     class BinaryFileReader;
@@ -36,7 +37,8 @@ private:
     QPushButton *processButton;
     QProgressBar *progressBar;
     QPushButton *skipButton;
-    QTableWidget *table;
+    //QTableWidget *table;
+    QCheckBox *showCheckBox;
     quint32 skipPercent;
 
     DLOG_HEADER strctLogHdr;

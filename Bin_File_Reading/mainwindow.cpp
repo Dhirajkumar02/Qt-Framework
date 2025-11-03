@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QLineEdit>
-#include <QTableWidget>
+//#include <QTableWidget>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -14,6 +14,7 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QProgressBar>
+#include <QCheckBox>
 
 BinaryFileReader::BinaryFileReader(QWidget *parent)
     : QWidget(parent), skipPercent(0)
@@ -37,6 +38,9 @@ void BinaryFileReader::setupUI()
     fileNameEdit = new QLineEdit;
     fileNameEdit->setPlaceholderText("Select a .bin file");
 
+    showCheckBox = new QCheckBox("Show");
+    showCheckBox ->setChecked(false); //default unchecked
+
     // Skip Percentage
     skipLineEdit = new QLineEdit;
     skipLineEdit->setPlaceholderText("Skip by %");
@@ -58,10 +62,10 @@ void BinaryFileReader::setupUI()
     progressBar->setFixedWidth(200);
 
     // Table Widget
-    table = new QTableWidget;
+    /*table = new QTableWidget;
     table->setColumnCount(4);
     table->setHorizontalHeaderLabels({"dTime", "Dwell_count", "Boresight", "No_of_rpts"});
-    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);*/
 
     // Layouts
     QHBoxLayout *topLayout = new QHBoxLayout;
@@ -73,11 +77,15 @@ void BinaryFileReader::setupUI()
     QHBoxLayout *processLayout = new QHBoxLayout;
     processLayout->addWidget(processButton);
     processLayout->addWidget(progressBar);
+    processLayout->addSpacing(10);
+    processLayout->addWidget(showCheckBox);
+    processLayout->addStretch();
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(topLayout);
     mainLayout->addLayout(processLayout);
-    mainLayout->addWidget(table);
+    //mainLayout->addWidget(table);
+    mainLayout->addStretch();
 }
 
 // -----------------------------
@@ -168,7 +176,7 @@ void BinaryFileReader::analysisFile()
         return;
     }
 
-    table->setRowCount(0); // Clear previous data
+    //tablea->setRowCount(0); // Clear previous data
 
     quint64 totalSize = binfile.size();
     quint64 skipBytes = (skipPercent * totalSize) / 100;
@@ -190,7 +198,7 @@ void BinaryFileReader::analysisFile()
     qint64 posAfter;
     quint32 msgID32;
     quint16 msgID16;
-    int row;
+    //int row;
 
     while (!in.atEnd()) {
         in >> msgID32;
@@ -223,14 +231,14 @@ void BinaryFileReader::analysisFile()
                     in.readRawData(reinterpret_cast<char*>(&strctRpts), sizeof(RPTS));
                 }
                 // Display in table
-                if(1){
+                /*if(1){
                 row = table->rowCount();
                 table->insertRow(row);
                 table->setItem(row, 0, new QTableWidgetItem(QString::number(strctPspData.dwell_data.dTime)));
                 table->setItem(row, 1, new QTableWidgetItem(QString::number(strctPspData.dwell_data.Dwell_count)));
                 table->setItem(row, 2, new QTableWidgetItem(QString::number(strctPspData.dwell_data.boresight)));
                 table->setItem(row, 3, new QTableWidgetItem(QString::number(strctPspData.no_of_rpt)));
-                }
+                }*/
                 writePspData(strctPspData, spOutputFile);
                 break;
 
