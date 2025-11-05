@@ -6,10 +6,9 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
-//#include <QTableWidget>
-#include <QProgressBar>
 #include <QFile>
 #include <QCheckBox>
+#include <QSlider>
 
 namespace Ui {
     class BinaryFileReader;
@@ -28,6 +27,7 @@ private slots:
     void openFile();
     void analysisFile();
     void skipPercentage();
+    void onSliderReleased();
 
 private:
     QPushButton *openFileButton;
@@ -35,10 +35,9 @@ private:
     QString selectedFilePath;
     QLineEdit *skipLineEdit;
     QPushButton *processButton;
-    QProgressBar *progressBar;
     QPushButton *skipButton;
-    //QTableWidget *table;
     QCheckBox *showCheckBox;
+    QSlider *progressSlider;
     quint32 skipPercent;
 
     DLOG_HEADER strctLogHdr;
@@ -52,6 +51,7 @@ private:
     QFile spOutputFile;
 
     void writePspData(const PSP_DATA &strctPspData, QFile &spOutputFile);
+    void reprocessFromPosition(quint64 position);
 };
 
 #endif // MAINWINDOW_H
