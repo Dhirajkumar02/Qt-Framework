@@ -16,7 +16,7 @@
 #include <QCheckBox>
 
 BinaryFileReader::BinaryFileReader(QWidget *parent)
-    : QWidget(parent), skipPercent(0)
+    : QWidget(parent), skipPercent(0), isProcessing(false)
 {
     setWindowTitle("Binary File Reader");
     resize(700, 500);
@@ -32,15 +32,15 @@ BinaryFileReader::~BinaryFileReader() = default;
 // -----------------------------
 void BinaryFileReader::setupUI()
 {
-    // File Selection
+    // File selection
     openFileButton = new QPushButton("Open File");
     fileNameEdit = new QLineEdit;
     fileNameEdit->setPlaceholderText("Select a .bin file");
 
     showCheckBox = new QCheckBox("Show");
-    showCheckBox->setChecked(false); // default unchecked
+    showCheckBox->setChecked(false);
 
-    // Skip Percentage
+    // Skip by percentage
     skipLineEdit = new QLineEdit;
     skipLineEdit->setPlaceholderText("Skip by %");
     skipLineEdit->setMaximumWidth(100);
@@ -48,19 +48,19 @@ void BinaryFileReader::setupUI()
     skipButton = new QPushButton("Skip");
     skipButton->setEnabled(false);
 
-    // Process File
+    // Analysis button
     processButton = new QPushButton("Analysis File");
     processButton->setFixedWidth(120);
     processButton->setEnabled(false);
 
-    // Interactive Progress Slider
+    // Interactive slider for skipping / progress
     progressSlider = new QSlider(Qt::Horizontal);
     progressSlider->setRange(0, 100);
     progressSlider->setValue(0);
     progressSlider->setFixedWidth(200);
-    progressSlider->setTracking(false); // update only when released
+    progressSlider->setTracking(false); // Only trigger when released
 
-    // Layouts
+    // Layout setup
     QHBoxLayout *topLayout = new QHBoxLayout;
     topLayout->addWidget(openFileButton);
     topLayout->addWidget(fileNameEdit);
@@ -81,32 +81,30 @@ void BinaryFileReader::setupUI()
 }
 
 // -----------------------------
-// Setup Signal-Slot Connections
+// Signal-Slot Connections
 // -----------------------------
 void BinaryFileReader::setupConnections()
 {
     connect(openFileButton, &QPushButton::clicked, this, &BinaryFileReader::openFile);
     connect(skipButton, &QPushButton::clicked, this, &BinaryFileReader::skipPercentage);
     connect(processButton, &QPushButton::clicked, this, &BinaryFileReader::analysisFile);
+    connect(progressSlider, &QSlider::sliderReleased, this, &BinaryFileReader::onSliderReleased);
 
-    // Enable process button only when a file is selected
+    // Enable process button when file selected
     connect(fileNameEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         processButton->setEnabled(!text.isEmpty());
     });
 
-    // Enable skip button only for valid percentage values (0-99)
+    // Enable skip button only for valid percentage input
     connect(skipLineEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         bool ok;
         int percent = text.toInt(&ok);
         skipButton->setEnabled(ok && percent >= 0 && percent < 100);
     });
-
-    // Handle user drag on progress slider
-    connect(progressSlider, &QSlider::sliderReleased, this, &BinaryFileReader::onSliderReleased);
 }
 
 // -----------------------------
-// Browse and select a binary file
+// Browse and select a .bin file
 // -----------------------------
 void BinaryFileReader::openFile()
 {
@@ -121,7 +119,7 @@ void BinaryFileReader::openFile()
 }
 
 // -----------------------------
-// Set skip percentage manually (Skip Button)
+// Skip button handler
 // -----------------------------
 void BinaryFileReader::skipPercentage()
 {
@@ -130,19 +128,24 @@ void BinaryFileReader::skipPercentage()
 
     if (ok && percent >= 0 && percent < 100) {
         skipPercent = percent;
-        progressSlider->setValue(skipPercent);  // show skip progress immediately
-        qDebug() << "Skip percentage set to:" << skipPercent;
+        progressSlider->setValue(skipPercent);
+        qDebug() << "Skip set to:" << skipPercent;
+
+        // If file is being processed, seek immediately
+        if (isProcessing) {
+            onSliderReleased();
+        }
     } else {
         skipPercent = 0;
         progressSlider->setValue(0);
         qDebug() << "Invalid skip percentage, defaulting to 0";
     }
 
-    qApp->processEvents(); // refresh UI
+    qApp->processEvents(); // Update UI immediately
 }
 
 // -----------------------------
-// Process and display the binary file
+// Start file analysis
 // -----------------------------
 void BinaryFileReader::analysisFile()
 {
@@ -150,6 +153,8 @@ void BinaryFileReader::analysisFile()
         QMessageBox::warning(this, "Warning", "No file selected.");
         return;
     }
+
+    isProcessing = true;  // ✅ mark processing start
 
     binfile.setFileName(binfilePath);
     if (!binfile.open(QIODevice::ReadOnly)) {
@@ -170,6 +175,7 @@ void BinaryFileReader::analysisFile()
     quint64 totalSize = binfile.size();
     quint64 skipBytes = (skipPercent * totalSize) / 100;
 
+    // Skip initial bytes if user set skip percentage
     if (!binfile.seek(skipBytes)) {
         QMessageBox::critical(this, "Error", "Failed to skip bytes in file!");
         binfile.close();
@@ -186,6 +192,7 @@ void BinaryFileReader::analysisFile()
     quint32 msgID32;
     quint16 msgID16;
 
+    // Main reading loop
     while (!in.atEnd()) {
         in >> msgID32;
 
@@ -205,9 +212,8 @@ void BinaryFileReader::analysisFile()
                 in >> strctPspData.no_of_rpt;
                 in >> strctPspData.RMS_IQ;
 
-                for (int i = 0; i < strctPspData.no_of_rpt; ++i) {
+                for (int i = 0; i < strctPspData.no_of_rpt; ++i)
                     in.readRawData(reinterpret_cast<char*>(&strctRpts), sizeof(RPTS));
-                }
 
                 writePspData(strctPspData, spOutputFile);
                 break;
@@ -223,7 +229,7 @@ void BinaryFileReader::analysisFile()
             in.device()->seek(posAfter - sizeof(msgID32) - 1);
         }
 
-        // Update progress bar relative to skipPercent
+        // Update progress percentage
         bytesReadTotal = in.device()->pos();
         int progressPercent = skipPercent + static_cast<int>(
                                   ((bytesReadTotal - skipBytes) * (100 - skipPercent)) / (totalSize - skipBytes)
@@ -237,42 +243,53 @@ void BinaryFileReader::analysisFile()
     binfile.close();
     spOutputFile.close();
 
-    qDebug() << "Skipped first" << skipPercent << "% (" << skipBytes << " bytes)";
+    isProcessing = false;  // ✅ mark processing end
+
+    qDebug() << "Analysis complete. Skipped first" << skipPercent << "% (" << skipBytes << " bytes)";
 }
 
 // -----------------------------
-// Handle mouse drag on slider for skip
+// Handle slider drag or click
 // -----------------------------
 void BinaryFileReader::onSliderReleased()
 {
     int newPercent = progressSlider->value();
     skipPercent = newPercent;
-    qDebug() << "User dragged slider to:" << newPercent << "%";
+    qDebug() << "User moved slider to:" << newPercent << "%";
 
-    if (!binfilePath.isEmpty()) {
-        binfile.setFileName(binfilePath);
-        if (!binfile.open(QIODevice::ReadOnly)) {
-            QMessageBox::critical(this, "Error", "Failed to open file for seeking!");
-            return;
-        }
-
-        quint64 totalSize = binfile.size();
-        quint64 newPosition = (newPercent * totalSize) / 100;
-
-        if (!binfile.seek(newPosition)) {
-            QMessageBox::critical(this, "Error", "Failed to seek to new position in file!");
-            return;
-        }
-
-        reprocessFromPosition(newPosition);
-        binfile.close();
-    } else {
-        QMessageBox::warning(this, "Warning", "Please open and start file analysis first.");
+    if (binfilePath.isEmpty()) {
+        QMessageBox::warning(this, "Warning", "Please open a file first.");
+        return;
     }
+
+    QFile tempFile(binfilePath);
+    if (!tempFile.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, "Error", "Failed to open file for seeking!");
+        return;
+    }
+
+    quint64 totalSize = tempFile.size();
+    quint64 newPosition = (newPercent * totalSize) / 100;
+
+    if (!tempFile.seek(newPosition)) {
+        QMessageBox::critical(this, "Error", "Failed to seek to new position!");
+        return;
+    }
+
+    // If file is being processed, jump immediately
+    if (isProcessing) {
+        reprocessFromPosition(newPosition);
+    } else {
+        // Otherwise, store new skipPercent for next analysis
+        skipPercent = newPercent;
+        qDebug() << "Will start from" << skipPercent << "% in next analysis.";
+    }
+
+    tempFile.close();
 }
 
 // -----------------------------
-// Reprocess file from specific position (for drag skip)
+// Reprocess file from a given position (for slider skip)
 // -----------------------------
 void BinaryFileReader::reprocessFromPosition(quint64 position)
 {
@@ -280,6 +297,16 @@ void BinaryFileReader::reprocessFromPosition(quint64 position)
 
     QFile tempFile(binfilePath);
     if (!tempFile.open(QIODevice::ReadOnly)) return;
+
+    QFileInfo fileInfo(binfilePath);
+    QString folderPath = fileInfo.absolutePath();
+    QString tempOutputPath = folderPath + "/PspOutput_Reprocess.txt";
+
+    QFile outputFile(tempOutputPath);
+    if (!outputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, "Error", "Cannot open reprocess output file!");
+        return;
+    }
 
     tempFile.seek(position);
 
@@ -309,10 +336,10 @@ void BinaryFileReader::reprocessFromPosition(quint64 position)
                 in >> strctPspData.no_of_rpt;
                 in >> strctPspData.RMS_IQ;
 
-                for (int i = 0; i < strctPspData.no_of_rpt; ++i) {
+                for (int i = 0; i < strctPspData.no_of_rpt; ++i)
                     in.readRawData(reinterpret_cast<char*>(&strctRpts), sizeof(RPTS));
-                }
-                writePspData(strctPspData, spOutputFile);
+
+                writePspData(strctPspData, outputFile);
             }
         }
 
@@ -322,6 +349,8 @@ void BinaryFileReader::reprocessFromPosition(quint64 position)
         qApp->processEvents();
     }
 
+    outputFile.close();
+    tempFile.close();
     progressSlider->setValue(100);
     qDebug() << "Reprocessed from position" << position;
 }
@@ -329,9 +358,9 @@ void BinaryFileReader::reprocessFromPosition(quint64 position)
 // -----------------------------
 // Write PSP Data to Output File
 // -----------------------------
-void BinaryFileReader::writePspData(const PSP_DATA &strctPspData, QFile &spOutputFile)
+void BinaryFileReader::writePspData(const PSP_DATA &strctPspData, QFile &file)
 {
-    QTextStream out(&spOutputFile);
+    QTextStream out(&file);
     out.setRealNumberPrecision(6);
     out.setRealNumberNotation(QTextStream::FixedNotation);
 
@@ -357,5 +386,5 @@ void BinaryFileReader::writePspData(const PSP_DATA &strctPspData, QFile &spOutpu
     }
 
     out << "Number of Reports: " << strctPspData.no_of_rpt << "\n\n";
-    qDebug() << "PSP data written to" << spOutputFilePath;
+    qDebug() << "PSP data written to file.";
 }

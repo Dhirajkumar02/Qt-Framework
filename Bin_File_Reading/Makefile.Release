@@ -322,13 +322,14 @@ release/moc_mainwindow.cpp: mainwindow.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextformat.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qpen.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QProgressBar \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qprogressbar.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/QFile \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfile.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfiledevice.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QCheckBox \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qcheckbox.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QSlider \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qslider.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qabstractslider.h \
 		release/moc_predefs.h \
 		C:/Qt/6.9.2/mingw_64/bin/moc.exe
 	C:\Qt\6.9.2\mingw_64\bin\moc.exe $(DEFINES) --include "E:/Qt Framework/Bin_File_Reading/release/moc_predefs.h" -IC:/Qt/6.9.2/mingw_64/mkspecs/win32-g++ -I"E:/Qt Framework/Bin_File_Reading" -IC:/Qt/6.9.2/mingw_64/include -IC:/Qt/6.9.2/mingw_64/include/QtWidgets -IC:/Qt/6.9.2/mingw_64/include/QtGui -IC:/Qt/6.9.2/mingw_64/include/QtCore -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++ -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32 -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed -IC:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include mainwindow.h -o release\moc_mainwindow.cpp
@@ -569,13 +570,14 @@ release/main.o: main.cpp mainwindow.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextformat.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qpen.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QProgressBar \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qprogressbar.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/QFile \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfile.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfiledevice.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QCheckBox \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qcheckbox.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QSlider \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qslider.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qabstractslider.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QApplication \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qapplication.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\main.o main.cpp
@@ -793,13 +795,14 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextformat.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qpen.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QProgressBar \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qprogressbar.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/QFile \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfile.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qfiledevice.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QCheckBox \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qcheckbox.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QSlider \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qslider.h \
+		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qabstractslider.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QApplication \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qapplication.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/QHeaderView \
@@ -813,8 +816,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qabstractspinbox.h \
 		C:/Qt/6.9.2/mingw_64/include/QtGui/qvalidator.h \
 		C:/Qt/6.9.2/mingw_64/include/QtCore/qregularexpression.h \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qslider.h \
-		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qabstractslider.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qstyle.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qtabbar.h \
 		C:/Qt/6.9.2/mingw_64/include/QtWidgets/qrubberband.h \
