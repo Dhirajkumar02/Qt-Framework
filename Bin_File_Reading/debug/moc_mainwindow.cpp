@@ -40,27 +40,27 @@ template <> constexpr inline auto BinaryFileReader::qt_create_metaobjectdata<qt_
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "BinaryFileReader",
-        "setupUI",
-        "",
-        "setupConnections",
         "openFile",
+        "",
         "analysisFile",
-        "skipPercentage",
-        "onSliderReleased"
+        "skipPressed",
+        "sliderMoved",
+        "togglePause",
+        "cancelProcessing"
     };
 
     QtMocHelpers::UintData qt_methods {
-        // Slot 'setupUI'
-        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'setupConnections'
-        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'openFile'
-        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'analysisFile'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'skipPressed'
+        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'sliderMoved'
         QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'skipPercentage'
+        // Slot 'togglePause'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSliderReleased'
+        // Slot 'cancelProcessing'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
@@ -85,12 +85,12 @@ void BinaryFileReader::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
     auto *_t = static_cast<BinaryFileReader *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->setupUI(); break;
-        case 1: _t->setupConnections(); break;
-        case 2: _t->openFile(); break;
-        case 3: _t->analysisFile(); break;
-        case 4: _t->skipPercentage(); break;
-        case 5: _t->onSliderReleased(); break;
+        case 0: _t->openFile(); break;
+        case 1: _t->analysisFile(); break;
+        case 2: _t->skipPressed(); break;
+        case 3: _t->sliderMoved(); break;
+        case 4: _t->togglePause(); break;
+        case 5: _t->cancelProcessing(); break;
         default: ;
         }
     }
