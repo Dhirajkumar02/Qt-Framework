@@ -200,25 +200,20 @@ struct DWELL_DATA {
     W1_2 Word3;
     W2 Word4;
     W3 Word5;
-
     WORD StartPredictedRange;
     WORD StopPredictedRange;
-
     float alpha;
     float beta;
     float boresight;
     float pitch;
     float roll;
-
     DWORD dTime;
-
     W11 Word13;
     W12 Word14;
     W13 Word15;
     W14 Word16;
     W15 Word17;
     W17 Word18;
-
     WORD Dwell_count;
     W19 Word19;
 };
@@ -240,7 +235,7 @@ struct PSP_DATA {
     struct DWELL_DATA dwell_data;
     WORD no_of_rpt;
     float RMS_IQ;
-    struct RPTS SrchRpts[50];
+    struct RPTS srch_rpts[50];
     // WORD eod;
 };
 #pragma pack(pop)

@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 #include <QThread>
 #include <QDebug>
+#include <QLabel>
 
 /**
  * Constructor – initializes state variables and UI
@@ -24,6 +25,7 @@ BinaryFileReader::BinaryFileReader(QWidget *parent)
     resize(700, 500);
     setupUI();
     setupConnections();
+    header=false;
 }
 
 BinaryFileReader::~BinaryFileReader() {}
@@ -35,7 +37,6 @@ void BinaryFileReader::setupUI()
     fileNameEdit = new QLineEdit;
     fileNameEdit->setPlaceholderText("Select .bin file");
 
-    // SKIP % INPUT
     skipLineEdit = new QLineEdit;
     skipLineEdit->setPlaceholderText("Skip %");
     skipLineEdit->setMaximumWidth(80);
@@ -43,25 +44,34 @@ void BinaryFileReader::setupUI()
     skipButton = new QPushButton("Skip");
     skipButton->setEnabled(false);
 
-    // MAIN PROCESS BUTTON
     processButton = new QPushButton("Analysis File");
     processButton->setEnabled(false);
 
-    // PLAYBACK CONTROLS
     pauseButton = new QPushButton("Pause");
     pauseButton->setEnabled(false);
 
     cancelButton = new QPushButton("Cancel");
     cancelButton->setEnabled(false);
 
-    // SLIDER (VIDEO PLAYER STYLE SEEK)
     progressSlider = new QSlider(Qt::Horizontal);
     progressSlider->setRange(0, 100);
-    progressSlider->setTracking(false); // Trigger only on release
+    progressSlider->setTracking(false);
 
     showCheckBox = new QCheckBox("Show");
 
-    // ---- LAYOUT A (Recommended) ----
+    // === Missing Dwell UI ===
+    missingLabel = new QLabel("Missing Dwell Count:");
+    missingLabel->setStyleSheet(
+        "font-size: 16px;"
+        "font-weight: bold;"
+        "color: #222;"
+        "padding: 4px;"
+        );
+
+    missingListWidget = new QListWidget();
+    missingListWidget->setMinimumHeight(150);
+
+    // Layouts
     QHBoxLayout *top = new QHBoxLayout;
     top->addWidget(openFileButton);
     top->addWidget(fileNameEdit);
@@ -79,8 +89,14 @@ void BinaryFileReader::setupUI()
     QVBoxLayout *main = new QVBoxLayout(this);
     main->addLayout(top);
     main->addLayout(mid);
+
+    // === Add Missing dwell section here ===
+    main->addWidget(missingLabel);
+    main->addWidget(missingListWidget);
+
     main->addStretch();
 }
+
 void BinaryFileReader::setupConnections()
 {
     connect(openFileButton,&QPushButton::clicked,this,&BinaryFileReader::openFile);
@@ -104,12 +120,12 @@ void BinaryFileReader::setupConnections()
 
 void BinaryFileReader::openFile()
 {
-    binfilePath = QFileDialog::getOpenFileName(
+    filePath = QFileDialog::getOpenFileName(
         this,"Open Binary File","","Binary Files (*.bin);;All Files (*)");
 
-    if(binfilePath.isEmpty()) return;
+    if(filePath.isEmpty()) return;
 
-    fileNameEdit->setText(binfilePath);
+    fileNameEdit->setText(filePath);
     openFileButton->setStyleSheet("background:lightgreen;");
 }
 void BinaryFileReader::skipPressed()
@@ -166,11 +182,13 @@ void BinaryFileReader::analysisFile()
         return;
     }
 
-    if(binfilePath.isEmpty())
+    if(filePath.isEmpty())
     {
         QMessageBox::warning(this,"Warning","File not selected.");
         return;
     }
+    // Clear missing dwell display for new analysis
+    missingListWidget->clear();
 
     // Reset control flags
     stopRequested = false;
@@ -181,111 +199,248 @@ void BinaryFileReader::analysisFile()
     pauseButton->setEnabled(true);
     cancelButton->setEnabled(true);
 
-    isProcessing = true;   // Mark analysis active
+    isProcessing = true;
 
-    // Open input file
-    binfile.setFileName(binfilePath);
-    if(!binfile.open(QIODevice::ReadOnly))
+    // Open input binary file
+    binFile.setFileName(filePath);
+    if(!binFile.open(QIODevice::ReadOnly))
     {
         QMessageBox::critical(this,"Error","Cannot open binary file.");
         isProcessing = false;
         return;
     }
 
-    // Prepare output text file
-    QFileInfo info(binfilePath);
-    spOutputFilePath = info.absolutePath() + "/" + info.baseName() + "_Output.txt";
+    // -------- SELECT OUTPUT FILE NAME BASED ON CHECKBOX --------
+    QFileInfo fileInfo(filePath);
 
-    if(spOutputFile.isOpen()) spOutputFile.close();
-    spOutputFile.setFileName(spOutputFilePath);
-    spOutputFile.open(QIODevice::WriteOnly | QIODevice::Text);
+    if(showCheckBox->isChecked())
+    {
+        // Checkbox ON → write abc_details.txt
+        pspOutputFilePath = fileInfo.absolutePath() + "/" +
+                            fileInfo.completeBaseName() + "_details.txt";
+    }
+    else
+    {
+        // Checkbox OFF → write abc.txt
+        pspOutputFilePath = fileInfo.absolutePath() + "/" +
+                            fileInfo.completeBaseName() + ".txt";
+    }
 
-    // Compute initial seek offset
-    quint64 totalSize = binfile.size();
-    quint64 skipBytes = (skipPercent * totalSize)/100;
+    // Create output text file
+    if(pspOutputFile.isOpen()) pspOutputFile.close();
+    pspOutputFile.setFileName(pspOutputFilePath);
 
-    binfile.seek(skipBytes);
+    if(!pspOutputFile.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::critical(this, "Error", "Cannot create output file for writing.");
+        isProcessing = false;
+        binFile.close();
+        return;
+    }
 
-    QDataStream in(&binfile);
+    header = true;   // write header only once
+
+    QDataStream in(&binFile);
     in.setByteOrder(QDataStream::LittleEndian);
 
+    quint64 totalSize = binFile.size();
+    quint64 skipBytes = (skipPercent * totalSize)/100;
+
+    if(!binFile.seek(skipBytes)){
+        QMessageBox::critical(this, "Error", "Failed to skip bytes");
+        binFile.close();
+        return;
+    }
+
+    quint64 byteReadTotal = skipBytes;
+    qint64 posAfter;
     quint32 msgID32;
     quint16 msgID16;
 
-    // ---------------------------
-    // MAIN BINARY READ LOOP
-    // ---------------------------
-    while(!in.atEnd())
+    while(!binFile.atEnd())
     {
-        if(cancelRequested) break;   // Hard stop
-        if(stopRequested) break;     // Seek request
+        if(cancelRequested) break;
+        if(stopRequested) break;
 
-        while(pauseRequested)        // Pause loop
+        while(pauseRequested)
         {
             qApp->processEvents();
             QThread::msleep(20);
         }
 
-        // Read 32-bit msg header
         in >> msgID32;
 
-        // Check for valid DLOG_HEADER sync
         if(msgID32 == 0xEEEEEEEE)
         {
-            // Read full header
-            in.readRawData((char*)&strctLogHdr,sizeof(DLOG_HEADER));
+            posAfter = in.device()->pos();
+            in.device()->seek(posAfter - sizeof(msgID32));
+
+            in.readRawData(reinterpret_cast<char*>(&strctLogHdr), sizeof(DLOG_HEADER));
             in >> msgID16;
 
-            // PSP Submessage
-            if(msgID16 == 0xAAA1)
+            switch(msgID16)
             {
-                // Read DWELL_DATA structure
-                in.readRawData((char*)&strctDwlData,sizeof(DWELL_DATA));
+            case 0xAAA1:
+                posAfter = in.device()->pos();
+                in.device()->seek(posAfter - sizeof(msgID16));
 
-                // Read additional PSP data
-                in >> strctPspData.no_of_rpt;
-                in >> strctPspData.RMS_IQ;
+                in.readRawData(reinterpret_cast<char*>(&strctDwlData),
+                               sizeof(DWELL_DATA));
 
-                for(int i=0;i<strctPspData.no_of_rpt && i<50;i++)
-                    in.readRawData((char*)&strctPspData.SrchRpts[i],sizeof(RPTS));
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
+                               sizeof(strctPspData.no_of_rpt));
 
-                // Write parsed data to output
-                writePspData(strctPspData, spOutputFile);
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.RMS_IQ),
+                               sizeof(strctPspData.RMS_IQ));
+
+                for(int i=0; i<strctPspData.no_of_rpt && i<50; i++)
+                {
+                    in.readRawData(reinterpret_cast<char*>(&strctPspData.srch_rpts[i]),
+                                   sizeof(RPTS));
+                }
+                // === Store for sorting ===
+                PspFrame f;
+                f.hdr   = strctLogHdr;
+                f.dwell = strctDwlData;
+                f.psp   = strctPspData;
+
+                pspFrames.append(f);
+
+                break;
+
+            default:
+                break;
+            }
+        }
+        else
+        {
+            if(in.atEnd()) break;
+            posAfter = in.device()->pos();
+            in.device()->seek(posAfter - (sizeof(msgID32)-1));
+        }
+
+        byteReadTotal = in.device()->pos();
+
+        int progressPercent = static_cast<int>(byteReadTotal * 100 / totalSize);
+        progressSlider->setValue(progressPercent);
+
+        QApplication::processEvents();
+    }
+
+    progressSlider->setValue(100);
+    binFile.close();
+    // ========================
+    //     SORT BY TIME
+    // ========================
+    std::sort(pspFrames.begin(), pspFrames.end(),
+              [](const PspFrame &a, const PspFrame &b){
+                  return a.hdr.m_ulTime < b.hdr.m_ulTime;
+              });
+
+    // ========================
+    //  CHECK DWELL CONTINUITY
+    // ========================
+    bool first = true;
+    quint32 prevDwell = 0;
+
+    for(const auto &f : pspFrames)
+    {
+        if(!first)
+        {
+            if(f.dwell.Dwell_count != prevDwell + 1)
+            {
+                quint32 missing = prevDwell + 1;
+
+                // === SHOW ON UI ===
+                missingListWidget->addItem(
+                    "Missing Dwell: " + QString::number(missing)
+                    );
+
+                // OPTIONAL: log to debug
+                qDebug() << "Missing Dwell:" << missing;
             }
         }
 
-        // Update progress bar
-        int percent = (in.device()->pos()*100)/totalSize;
-        progressSlider->setValue(percent);
+        first = false;
+        prevDwell = f.dwell.Dwell_count;
 
-        qApp->processEvents();
+        writePspData(f.psp, pspOutputFile);
     }
 
-    spOutputFile.close();
-    binfile.close();
+    pspOutputFile.close();
 
     isProcessing = false;
 
-    // If slider/skip requested restart → call again
     if(!cancelRequested && stopRequested)
         analysisFile();
 }
-void BinaryFileReader::writePspData(const PSP_DATA &data, QFile &file)
+
+void BinaryFileReader::writePspData(const PSP_DATA &data, QFile &pspOutputFile)
 {
-    QTextStream out(&file);
+    QTextStream out(&pspOutputFile);
+    out.setRealNumberPrecision(4);
+    out.setRealNumberNotation(QTextStream::FixedNotation);
+    out.setFieldAlignment(QTextStream::AlignRight);
 
-    out << "\n--- PSP DWELL DATA ---\n";
-    out << "Dwell Count: " << data.dwell_data.Dwell_count << "\n";
-    out << "Alpha: " << data.dwell_data.alpha << "\n";
-    out << "Beta: " << data.dwell_data.beta << "\n";
-    out << "Reports: " << data.no_of_rpt << "\n";
-
-    for(int i=0;i<data.no_of_rpt && i<50;i++)
-    {
-        const RPTS &r = data.SrchRpts[i];
-        out << "["<<i+1<<"] Range="<<r.m_frange
-            << ", Strength="<<r.m_fStrength
-            << ", Noise="<<r.m_fNoise << "\n";
+    if(header){
+        if(showCheckBox->isChecked()){
+            out<<"1. word0_msg_id"<<" 2. Word1(beamType:4, FncNmbr: 4, OpMode:1, CfarThreshold:4, CFarType:3)"<<" 3. Word2(wBeamNo:8, wTrkId:8)"
+                <<" 4. Word3(ECCM_OnOff:1, WECCMType:5, NECCMFreq:2, WJmdLocn_OnOff:1, WECCM_Auto_Mnl: 1, WZoneNo: 2, wBroadBeam:2, wReserved7_5:2)"
+                <<" 5. Word4(Integration:4, ZFiltDrop:1, MapCntr:1, MapThreshold:3, IMTS:1, AMTI:1, MTI:2, VideoSelection:1, SLB_OnOff:1, Splog:1)"
+                <<" 6. Word4(WDPC:1, BinaryThreshold:7, RangeWindowSize:3, Reserved_1:1, wHybridMode: 1, wDPCWindowOnOff:1, SysMode:2)"
+                <<" 7. StartPredictedRange "<<" 8. StopPredictedRange"<<" 9. alpha "<<" 10. beta "<<" 11. boresight "<<" 12. Pitch "<<" 13. Roll "
+                <<" 14. dTime "<<" 15. Word13(BTTE_attenuation : 6, DopplerCode:4, TgtSpacing:2, TgtInOut:1, BITE_RF_Field:1, BITE_OnOff:1, STAMO_BITE:1)"
+                <<" 16. Word14 "<<" 17. Word15 "<<" 18. Word16 "<<" 19. Word17 "<<" 20. Word18 "<<" 21. DC "<<" 22. Word19 "<<"\n";
+        }else
+        {
+            out<<"1. word0_msg_id"<<" 2. Word1 "<<" 3. Word2 "<<" 4. Word3 "<<" 5. Word4"<<" 6. Word4"
+                <<" 7. StartPredictedRange "<<" 8. StopPredictedRange "<<" 9. alpha "<<" 10. beta "
+                <<" 11. boresight "<<" 12. Pitch "<<" 13. Roll "<<" 14. dTime "<<" 15. Word13 "
+                <<" 16. Word14 "<<" 17. Word15 "<<" 18. Word16 "<<" 19. Word17 "<<" 20. Word18 "<<" 21. DC "<<" 22. Word19 "<<"\n";
+        }
+        header = false;
     }
+    if(showCheckBox->isChecked()){
+        out<<"1. "<<toHex(strctPspData.dwell_data.Word0_Msg_id)<<toHex(strctPspData.dwell_data.Word1.bits.beamType)<<toHex(strctPspData.dwell_data.Word1.bits.FncNmbr)<<" ";
+        out<<" 23. "<<strctPspData.no_of_rpt;
+        for(int i=0;i<strctPspData.no_of_rpt && i < 50;i++)
+        {
+            const RPTS &r = data.srch_rpts[i];
+            out <<" "<<r.m_frange
+                <<" "<<r.m_fStrength
+                <<" "<<r.m_fNoise
+                <<" "<<r.m_fDelAlpha<<" "<<r.m_fDelBeta<<" "<<r.m_fFilterNo
+                << "\n";
+        }
+    }
+    else{
+        out<<"1. "<<strctPspData.dwell_data.Word0_Msg_id<<" 2. "<<strctPspData.dwell_data.Word1.word
+            <<" 3. "<<strctPspData.dwell_data.Word2.word<<" 4. "<<strctPspData.dwell_data.Word3.word
+            <<" 5. "<<strctPspData.dwell_data.Word4.word<<" 6. "<<strctPspData.dwell_data.Word5.word
+            <<" 7. "<<strctPspData.dwell_data.StartPredictedRange<<" 8. "<<strctPspData.dwell_data.StopPredictedRange
+            <<" 9. "<<strctPspData.dwell_data.alpha<<" 10. "<<strctPspData.dwell_data.beta<<" 11. "
+            <<strctPspData.dwell_data.boresight<<" 12. "<<strctPspData.dwell_data.pitch<<" 13. "
+            <<strctPspData.dwell_data.roll<<" 14. "<<strctPspData.dwell_data.dTime<<" 15. "<<strctPspData.dwell_data.Word13.word
+            <<" 16. "<<strctPspData.dwell_data.Word14.word<<" 17. "<<strctPspData.dwell_data.Word15.word<<" 18. "
+            <<strctPspData.dwell_data.Word16.word<<" 19. "<<strctPspData.dwell_data.Word17.word<<" 20. "
+            <<strctPspData.dwell_data.Word18.word <<" 21. "<<strctPspData.dwell_data.Dwell_count<<" 22. "
+            <<strctPspData.dwell_data.Word19.word<<"\n";
+
+        out<<" 23. "<<strctPspData.no_of_rpt;
+        for(int i=0;i<strctPspData.no_of_rpt && i < 50;i++)
+        {
+            const RPTS &r = data.srch_rpts[i];
+            out <<" "<<r.m_frange
+                <<" "<<r.m_fStrength
+                <<" "<<r.m_fNoise
+                <<" "<<r.m_fDelAlpha<<" "<<r.m_fDelBeta<<" "<<r.m_fFilterNo
+                << " ";
+        }
+        out<<"\n";
+    }
+}
+
+QString BinaryFileReader::toHex(quint32 value, int width){
+    return QString("0x%1").arg(value, width, 16, QLatin1Char('0')).toUpper();
 }
 

@@ -8,6 +8,8 @@
 #include <QFile>
 #include <QSlider>
 #include <QCheckBox>
+#include <QListWidget>
+#include <QLabel>
 
 /**
  * @class BinaryFileReader
@@ -42,7 +44,7 @@ private slots:
 private:
     void setupUI();          // Build UI elements
     void setupConnections(); // Connect signals/slots
-    void writePspData(const PSP_DATA &data, QFile &file); // Write parsed PSP data
+
 
 private:
     // -------- UI ELEMENTS --------
@@ -57,11 +59,12 @@ private:
     QCheckBox   *showCheckBox;
 
     // -------- DATA / STATES --------
-    QString binfilePath;
-    QFile   binfile;
+    QString filePath;
+    QFile   binFile;
 
-    QString spOutputFilePath;
-    QFile   spOutputFile;
+    QString pspOutputFilePath;
+    QFile   pspOutputFile;
+    bool header;
 
     quint32 skipPercent;     // Current skip % position
     bool isProcessing;       // True while analysis loop runs
@@ -74,6 +77,20 @@ private:
     PSP_DATA    strctPspData;
     DWELL_DATA  strctDwlData;
     RPTS        strctRpts;
+
+    struct PspFrame {
+        DLOG_HEADER hdr;
+        DWELL_DATA dwell;
+        PSP_DATA psp;
+    };
+    QVector<PspFrame> pspFrames;
+    QLabel *missingLabel;
+    QListWidget *missingListWidget;
+
+
+
+    void writePspData(const PSP_DATA &strctPspData, QFile &pspOutputFile);
+    static QString toHex(quint32 value, int width=4);
 };
 
 #endif // MAINWINDOW_H
