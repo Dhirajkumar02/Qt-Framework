@@ -10,21 +10,20 @@
 #include <QCheckBox>
 #include <QListWidget>
 #include <QLabel>
+#include <QVector>
 
-/**
- * @class BinaryFileReader
- * @brief
- *  High-performance binary log reader with:
- *  - Skip % jump
- *  - Slider-based seeking (like video player)
- *  - Pause/Resume
- *  - Cancel
- *  - Single unified analysis function
- *  - Real-time progress bar updates
- *
- *  This class reads radar-like PSP binary logs using fixed structures.
- *  It supports dynamic re-seeking while processing.
- */
+// ===============================
+//  GLOBAL FRAME STRUCT (LRDE standard)
+// ===============================
+struct Frame
+{
+    DLOG_HEADER hdr;     // 8 bytes (MsgID + Time)
+    DWELL_DATA dwell;    // Full dwell data
+    WORD no_of_rpt;      // Number of reports
+    float RMS_IQ;        // RMS-IQ value
+    QVector<RPTS> rpts;  // Report list (0–50)
+};
+
 class BinaryFileReader : public QWidget
 {
     Q_OBJECT
@@ -34,20 +33,21 @@ public:
     ~BinaryFileReader();
 
 private slots:
-    void openFile();         // Select input .bin file
-    void analysisFile();     // Start/Restart full analysis
-    void skipPressed();      // Manual skip % (before analysis)
-    void sliderMoved();      // Slider seek (before & during analysis)
-    void togglePause();      // Pause/Resume processing
-    void cancelProcessing(); // Cancel processing immediately
+    void openFile();
+    void analysisFile();
+    void skipPressed();
+    void sliderMoved();
+    void togglePause();
+    void cancelProcessing();
 
 private:
-    void setupUI();          // Build UI elements
-    void setupConnections(); // Connect signals/slots
-
+    void setupUI();
+    void setupConnections();
+    void writeFrameData(const Frame &pspData, QTextStream &outputFile);
+    static QString toHex(quint32 value, int width = 4);
 
 private:
-    // -------- UI ELEMENTS --------
+    // UI Elements
     QPushButton *openFileButton;
     QLineEdit   *fileNameEdit;
     QLineEdit   *skipLineEdit;
@@ -58,39 +58,29 @@ private:
     QSlider     *progressSlider;
     QCheckBox   *showCheckBox;
 
-    // -------- DATA / STATES --------
-    QString filePath;
-    QFile   binFile;
-
-    QString pspOutputFilePath;
-    QFile   pspOutputFile;
-    bool header;
-
-    quint32 skipPercent;     // Current skip % position
-    bool isProcessing;       // True while analysis loop runs
-    bool stopRequested;      // For slider/skip restart
-    bool pauseRequested;     // For pause/resume
-    bool cancelRequested;    // For cancel
-
-    // -------- BINARY STRUCTS --------
-    DLOG_HEADER strctLogHdr;
-    PSP_DATA    strctPspData;
-    DWELL_DATA  strctDwlData;
-    RPTS        strctRpts;
-
-    struct PspFrame {
-        DLOG_HEADER hdr;
-        DWELL_DATA dwell;
-        PSP_DATA psp;
-    };
-    QVector<PspFrame> pspFrames;
     QLabel *missingLabel;
     QListWidget *missingListWidget;
 
+    // States
+    QString filePath;
+    QFile binFile;
 
+    QString pspOutputFilePath;
+    QFile pspOutputFile;
 
-    void writePspData(const PSP_DATA &strctPspData, QFile &pspOutputFile);
-    static QString toHex(quint32 value, int width=4);
+    bool headerWritten;
+    quint32 skipPercent;
+    bool isProcessing;
+    bool stopRequested;
+    bool pauseRequested;
+    bool cancelRequested;
+
+    // Temporary read buffers
+    DLOG_HEADER strctLogHdr;
+    DWELL_DATA  strctDwlData;
+
+    // MAIN STORAGE (sorted + processed)
+    QVector<Frame> frames;
 };
 
 #endif // MAINWINDOW_H
