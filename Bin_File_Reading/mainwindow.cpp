@@ -220,80 +220,101 @@ void BinaryFileReader::analysisFile()
         return;
     }
 
-    quint64 byteReadTotal = skipBytes;
-    quint32 msgID32;
-    quint16 msgID16;
-    qint64 posAfter;
+   // quint64 byteReadTotal = skipBytes;
+    quint8  byte = 0;
+    quint32 msgID32 = 0;
 
-    // READ LOOP — collect AAA1 frames
+    // READ LOOP — byte-by-byte sync detection
     while (!binFile.atEnd()) {
-        if (cancelRequested) break;
-        if (stopRequested) break;
+
+        if (cancelRequested || stopRequested)
+            break;
 
         while (pauseRequested) {
             qApp->processEvents();
             QThread::msleep(20);
         }
 
-        in >> msgID32; // read next 4 bytes
+        // Read exactly 1 byte
+        if (binFile.read(reinterpret_cast<char*>(&byte), 1) != 1)
+            break;
 
+        // LITTLE-ENDIAN sliding window
+        msgID32 = (msgID32 >> 8) | (static_cast<quint32>(byte) << 24);
+
+        // Sync word found
         if (msgID32 == 0xEEEEEEEE) {
-            // rewind to start of header and read full header struct
-            posAfter = in.device()->pos();
-            in.device()->seek(posAfter - static_cast<qint64>(sizeof(msgID32)));
 
-            in.readRawData(reinterpret_cast<char*>(&strctLogHdr), sizeof(DLOG_HEADER));
+            // Ensure full header exists
+            if (binFile.bytesAvailable() <
+                static_cast<qint64>(sizeof(DLOG_HEADER) - 4))
+                break;
 
-            // read the 16-bit sub-message id
+            // Rewind to header start
+            binFile.seek(binFile.pos() - 4);
+
+            // Read full header
+            in.readRawData(reinterpret_cast<char*>(&strctLogHdr),
+                           sizeof(DLOG_HEADER));
+
+            // Read sub-message ID
+            quint16 msgID16 = 0;
             in >> msgID16;
 
-            if (msgID16 == 0xAAA1) {
-                // rewind to submessage id start (keep aligned)
-                posAfter = in.device()->pos();
-                in.device()->seek(posAfter - static_cast<qint64>(sizeof(msgID16)));
-
-                // read DWELL_DATA (packed)
-                in.readRawData(reinterpret_cast<char*>(&strctDwlData), sizeof(DWELL_DATA));
-
-                // read no_of_rpt and RMS_IQ
-                WORD no_of_rpt_local = 0;
-                in.readRawData(reinterpret_cast<char*>(&no_of_rpt_local), sizeof(no_of_rpt_local));
-
-                float rms_local = 0.0f;
-                in.readRawData(reinterpret_cast<char*>(&rms_local), sizeof(rms_local));
-
-                // read RPTS entries (count limited to 50)
-                int count = qMin<int>(static_cast<int>(no_of_rpt_local), 50);
-                QVector<RPTS> rpts_local;
-                rpts_local.resize(count);
-                for (int i = 0; i < count; ++i) {
-                    in.readRawData(reinterpret_cast<char*>(&rpts_local[i]), sizeof(RPTS));
-                }
-
-                // build Frame and append
-                Frame f;
-                f.hdr = strctLogHdr;
-                f.dwell = strctDwlData;
-                f.no_of_rpt = no_of_rpt_local;
-                f.RMS_IQ = rms_local;
-                f.rpts = std::move(rpts_local);
-
-                frames.append(std::move(f));
+            // False sync protection
+            if (msgID16 != 0xAAA1) {
+                binFile.seek(binFile.pos() - sizeof(msgID16) + 1);
+                msgID32 = 0;
+                continue;
             }
-            // else: skip other submessages
-        } else {
-            // move back a byte and continue searching
-            if (in.atEnd()) break;
-            posAfter = in.device()->pos();
-            in.device()->seek(posAfter - static_cast<qint64>(sizeof(msgID32) - 1));
+
+            // Read DWELL data
+            in.readRawData(reinterpret_cast<char*>(&strctDwlData),
+                           sizeof(DWELL_DATA));
+
+            // Read report count
+            WORD no_of_rpt_local = 0;
+            in.readRawData(reinterpret_cast<char*>(&no_of_rpt_local),
+                           sizeof(no_of_rpt_local));
+
+            // Read RMS
+            float rms_local = 0.0f;
+            in.readRawData(reinterpret_cast<char*>(&rms_local),
+                           sizeof(rms_local));
+
+            // Read RPTS (max 50)
+            int count = qMin<int>(static_cast<int>(no_of_rpt_local), 50);
+            QVector<RPTS> rpts_local(count);
+
+            for (int i = 0; i < count; ++i) {
+                in.readRawData(reinterpret_cast<char*>(&rpts_local[i]),
+                               sizeof(RPTS));
+            }
+
+            // Build frame
+            Frame f;
+            f.hdr       = strctLogHdr;
+            f.dwell     = strctDwlData;
+            f.no_of_rpt = no_of_rpt_local;
+            f.RMS_IQ    = rms_local;
+            f.rpts      = std::move(rpts_local);
+
+            frames.append(std::move(f));
+
+            // Reset window after successful frame
+            msgID32 = 0;
         }
 
-        byteReadTotal = in.device()->pos();
-        int progressPercent = totalSize ? static_cast<int>((byteReadTotal * 100) / totalSize) : 0;
-        progressSlider->setValue(progressPercent);
+        // Progress update
+        quint64 byteReadTotal = binFile.pos();
+        int progressPercent = totalSize
+                                  ? static_cast<int>((byteReadTotal * 100) / totalSize)
+                                  : 0;
 
+        progressSlider->setValue(progressPercent);
         qApp->processEvents();
     }
+
 
     // finished reading raw frames
     binFile.close();
