@@ -13,8 +13,10 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
+    constants.h \
     mainwindow.h \
-    messages.h
+    messages.h \
+    utilities.h
 
 FORMS += \
     mainwindow.ui
