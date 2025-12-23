@@ -162,238 +162,149 @@ void BinaryFileReader::cancelProcessing()
 }
 void BinaryFileReader::analysisFile()
 {
-    // If analysis already running → request stop and return
-    if(isProcessing)
-    {
+    if (isProcessing) {
         stopRequested = true;
         return;
     }
 
-    if(filePath.isEmpty())
-    {
-        QMessageBox::warning(this,"Warning","File not selected.");
+    if (filePath.isEmpty()) {
+        QMessageBox::warning(this, "Warning", "File not selected.");
         return;
     }
 
-    // Reset control flags
-    stopRequested = false;
-    pauseRequested = false;
+    stopRequested   = false;
+    pauseRequested  = false;
     cancelRequested = false;
+    isProcessing    = true;
 
-    progressSlider->setValue(skipPercent);
-    pauseButton->setEnabled(true);
-    cancelButton->setEnabled(true);
-
-    isProcessing = true;
-
-    // Open input binary file
+    // ---- Open binary file ----
     binFile.setFileName(filePath);
-    if(!binFile.open(QIODevice::ReadOnly))
-    {
-        QMessageBox::critical(this,"Error","Cannot open binary file.");
+    if (!binFile.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, "Error", "Cannot open binary file.");
         isProcessing = false;
         return;
     }
 
-    // -------- SELECT OUTPUT FILE NAME BASED ON CHECKBOX --------
+    // ---- Open output files (helper) ----
     QFileInfo fileInfo(filePath);
-
-    if(showCheckBox->isChecked())
+    if (!openAllOutputFiles(fileInfo))
     {
-        // Checkbox ON → write abc_details.txt
-        pspOutputFilePath = fileInfo.absolutePath() + "/" +
-                            fileInfo.completeBaseName() + "_details.txt";
-    }
-    else
-    {
-        // Checkbox OFF → write abc.txt
-        pspOutputFilePath = fileInfo.absolutePath() + "/" +
-                            fileInfo.completeBaseName() + ".txt";
-    }
-    // Create output text file
-    if(pspOutputFile.isOpen()) pspOutputFile.close();
-    pspOutputFile.setFileName(pspOutputFilePath);
-
-    if(!pspOutputFile.open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        QMessageBox::critical(this, "Error", "Cannot create output file for writing.");
+        binFile.close();
         isProcessing = false;
-        binFile.close();
         return;
     }
 
-    stsOutputFilePath = fileInfo.absolutePath() + "/" + fileInfo.completeBaseName() + ".sts";
-    if(stsOutputFile.isOpen()) stsOutputFile.close();
-    stsOutputFile.setFileName(stsOutputFilePath);
 
-    if(!stsOutputFile.open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        QMessageBox::critical(this, "Error", "Cannot create output file for writing.");
-        isProcessing = false;
-        binFile.close();
-        return;
-    }
+    const quint64 totalSize = binFile.size();
 
-    header = true;   // write header only once
+    // ---- Buffered byte-wise scan ----
+    const int BUF_SIZE = 64 * 1024;   // 64 KB
+    QByteArray buffer(BUF_SIZE, 0);
 
-    QDataStream in(&binFile);
-    in.setByteOrder(QDataStream::LittleEndian);
-
-    quint64 totalSize = binFile.size();
-    quint64 skipBytes = (skipPercent * totalSize)/100;
-
-    if(!binFile.seek(skipBytes)){
-        QMessageBox::critical(this, "Error", "Failed to skip bytes");
-        binFile.close();
-        return;
-    }
-
-    quint64 byteReadTotal = skipBytes;
-    quint32 msgID32;
-    quint16 msgID16;
-
-    quint8 byte;
     quint32 syncReg = 0;
+    quint64 processed = 0;
 
     while (!binFile.atEnd())
     {
         if (cancelRequested || stopRequested)
             break;
 
-        while (pauseRequested)
-        {
+        while (pauseRequested) {
             qApp->processEvents();
             QThread::msleep(20);
         }
 
-        // -------- READ 1 BYTE --------
-        if (binFile.read(reinterpret_cast<char*>(&byte), 1) != 1)
+        qint64 n = binFile.read(buffer.data(), buffer.size());
+        if (n <= 0)
             break;
 
-        // -------- SHIFT REGISTER --------
-        syncReg = (syncReg << 8) | byte;
-
-        // -------- CHECK SYNC --------
-        if (syncReg != 0xEEEEEEEE)
-            continue;
-
-        // ===== SYNC FOUND =====
-
-        // Fill header (first 4 bytes already known)
-        strctLogHdr.m_ulMsgId = 0xEEEEEEEE;
-
-        // Read remaining header bytes
-        if (binFile.read(reinterpret_cast<char*>(&strctLogHdr.m_ulTime),
-                         sizeof(DLOG_HEADER) - sizeof(quint32))
-            != (sizeof(DLOG_HEADER) - sizeof(quint32)))
-            break;
-
-        // -------- READ MSG ID --------
-        if (binFile.read(reinterpret_cast<char*>(&msgID16),
-                         sizeof(msgID16)) != sizeof(msgID16))
-            break;
-
-        // -------- SWITCH CASE --------
-        switch (msgID16)
+        for (qint64 i = 0; i < n; ++i)
         {
-        case 0xAAA1:
-        {
-            binFile.read(reinterpret_cast<char*>(&strctDwlData),
-                         sizeof(DWELL_DATA));
+            quint8 byte = static_cast<quint8>(buffer[i]);
 
-            binFile.read(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
-                         sizeof(strctPspData.no_of_rpt));
+            // ---- rolling window (little-endian safe) ----
+            syncReg = (syncReg >> 8) | (quint32(byte) << 24);
 
-            binFile.read(reinterpret_cast<char*>(&strctPspData.RMS_IQ),
-                         sizeof(strctPspData.RMS_IQ));
+            if (syncReg != 0xEEEEEEEE)
+                continue;
 
-            for (int i = 0; i < strctPspData.no_of_rpt && i < 50; i++)
+            // ===== SYNC FOUND =====
+            syncReg = 0;
+
+            // ---- Read rest of DLOG_HEADER (except sync) ----
+            if (binFile.read(reinterpret_cast<char*>(&strctLogHdr.m_ulTime),
+                             sizeof(DLOG_HEADER) - sizeof(quint32))
+                != (sizeof(DLOG_HEADER) - sizeof(quint32)))
+                break;
+
+            // ---- Read 16-bit message ID ----
+            quint16 msgID16;
+            if (binFile.read(reinterpret_cast<char*>(&msgID16), sizeof(msgID16))
+                != sizeof(msgID16))
+                break;
+
+            msgID16 = qFromLittleEndian(msgID16);
+
+            // ---- Handle sub-messages ----
+            switch (msgID16)
             {
-                binFile.read(reinterpret_cast<char*>(&strctPspData.srch_rpts[i]),
-                             sizeof(RPTS));
+            case 0xAAA1:   // PSP
+            {
+                if (binFile.read(reinterpret_cast<char*>(&strctDwlData),
+                                 sizeof(DWELL_DATA)) != sizeof(DWELL_DATA))
+                    break;
+
+                binFile.read(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
+                             sizeof(strctPspData.no_of_rpt));
+
+                binFile.read(reinterpret_cast<char*>(&strctPspData.RMS_IQ),
+                             sizeof(strctPspData.RMS_IQ));
+
+                for (int r = 0; r < strctPspData.no_of_rpt && r < 50; ++r)
+                {
+                    binFile.read(reinterpret_cast<char*>(&strctPspData.srch_rpts[r]),
+                                 sizeof(RPTS));
+                }
+
+                // ---- write outputs ----
+                writePspData(strctPspData, pspOutputFile);
+
             }
-
-            writePspData(strctPspData, pspOutputFile);
-
-            PspFrame f;
-            f.hdr   = strctLogHdr;
-            f.dwell= strctDwlData;
-            f.psp  = strctPspData;
-            pspFrames.append(f);
-        }
-        break;
-
-        case 0xAAAA:
-            // dwell-only
             break;
 
-        case 0xA801:
-            // dwell count
-            break;
+                // ---- ADD YOUR OTHER 10+ CASES HERE ----
+                // case 0xAAAA:
+                // case 0xA801:
+                // case 0xAA03:
+                // ...
 
-        default:
-            // unknown → safely ignore
-            break;
-        }
-
-        // -------- PROGRESS UPDATE --------
-        byteReadTotal = binFile.pos();
-        int progressPercent =
-            static_cast<int>((byteReadTotal * 100) / totalSize);
-        progressSlider->setValue(progressPercent);
-        QApplication::processEvents();
-    }
-
-    // SORT BY TIME
-    std::sort(pspFrames.begin(), pspFrames.end(),
-              [](const PspFrame &a, const PspFrame &b){
-                  return a.hdr.m_ulTime < b.hdr.m_ulTime;
-              });
-
-    // CHECK DWELL CONTINUITY + WRITE
-    if(pspFrames.size() > 1){
-        QString msg;
-        quint32 prevDwell_Count;
-        prevDwell_Count = pspFrames[0].psp.dwell_data.Dwell_count;
-
-        for(int i = 1; i<pspFrames.size(); i++){
-            quint32 currDwell_Count;
-            currDwell_Count = pspFrames[i].psp.dwell_data.Dwell_count;
-            quint32 diff = currDwell_Count - prevDwell_Count;
-            if( diff != 1){
-                if(diff != -65535)
-                    count++;
-                if(currDwell_Count == prevDwell_Count){
-                    msg = QString("Duplicate Dwell_Count: ").arg(currDwell_Count);
-                }
-                else if(currDwell_Count == prevDwell_Count +2){
-                    msg = QString("Missing Dwell_Count: ").arg(prevDwell_Count + 1).arg(currDwell_Count - 1);
-                }
-                else{
-                    msg = QString("Missed number of Dwell_Count: ").arg(diff);
-                }
-                missingListWidget -> addItem(new QListWidgetItem (msg));
+            default:
+                break;
             }
-            prevDwell_Count = currDwell_Count;
         }
-        msg = QString("Total number of missed dwell count: ").arg(count);
-        missingListWidgetItem -> addItem((msg));
-    }
 
-    for(const auto &f : pspFrames)
-    {
+        processed += n;
 
-        writePspData(f.psp, pspOutputFile);
+        // ---- UI update (throttled) ----
+        static int uiTick = 0;
+        if (++uiTick % 200 == 0) {
+            int progress = static_cast<int>((processed * 100) / totalSize);
+            progressSlider->setValue(progress);
+            QApplication::processEvents();
+        }
     }
 
     progressSlider->setValue(100);
+
     binFile.close();
     pspOutputFile.close();
     stsOutputFile.close();
+    //spOutputFile.close();
+    //spCenOutputFile.close();
 
     isProcessing = false;
 
-    if(!cancelRequested && stopRequested)
+    if (!cancelRequested && stopRequested)
         analysisFile();
 }
 
@@ -466,4 +377,49 @@ QString BinaryFileReader::toHex(quint32 value, int width){
     return QString("0x%1").arg(value, width, 16, QLatin1Char('0')).toUpper();
 }
 
+bool BinaryFileReader::openAllOutputFiles(const QFileInfo &fileInfo)
+{
+    struct OutputSpec
+    {
+        QFile* file;
+        QString extension;
+    };
 
+    const QVector<OutputSpec> files =
+        {
+            { &pspOutputFile,   ".txt"   },
+            { &stsOutputFile,   ".sts"   },
+            { &spOutputFile,    ".sp"    },
+            { &spCenOutputFile, ".spcen" },
+            { &logOutputFile,   ".log"   }
+        };
+
+    for (const auto &out : files)
+    {
+        if (!openOutputFile(*out.file, fileInfo, out.extension))
+        {
+            QMessageBox::critical(
+                this,
+                "File Error",
+                "Cannot create output file: " + out.extension
+                );
+            return false;
+        }
+    }
+    return true;
+}
+bool BinaryFileReader::openOutputFile(QFile &file,
+                                      const QFileInfo &fileInfo,
+                                      const QString &extension)
+{
+    const QString path =
+        fileInfo.absolutePath() + "/" +
+        fileInfo.completeBaseName() + extension;
+
+    if (file.isOpen())
+        file.close();
+
+    file.setFileName(path);
+
+    return file.open(QIODevice::WriteOnly | QIODevice::Text);
+}

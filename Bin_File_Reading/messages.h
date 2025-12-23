@@ -240,4 +240,92 @@ struct PSP_DATA {
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct CEN_REPORT
+{
+    WORD rpt_Id;
+    float range;
+    float azm;
+    float elv;
+    float strength;
+    float SNR;
+    float filterNo;
+    float noise;
+    DWORD time;
+    float X;
+    float Y;
+    float Z;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct CEN_DATA{
+    WORD trackId;
+    WORD no_of_rtps;
+    WORD beamType;
+    CEN_REPORT cen_rpts[50];
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct DELETE
+{
+    WORD trackId;
+    WORD delete_Reason;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct GATE
+{
+    WORD trackId;
+    float min_Range;
+    float max_Range;
+    float min_Azm;
+    float max_Azm;
+    float min_Elv;
+    float max_Elv;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct POS
+{
+    float range;
+    float azm;
+    float elv;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct CART{
+    float X;
+    float Y;
+    float Z;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct FILTER_DATA{
+    WORD trackId;
+    DWORD time;
+    POS filterPosn;
+    CART predictedPosn;
+    CART measurePosn;
+    CART filter_Vel;
+    CART filter_Accel;
+    CART Con;
+    CART Inn;
+    float wt[5];
+    float speed;
+    float strength;
+    float noise;
+    WORD filter_No;
+    float delAlpha;
+    float delBeta;
+    WORD noted_7;
+    WORD noted_13;
+};
+#pragma pack(pop)
+
 #endif // MESSAGES_H

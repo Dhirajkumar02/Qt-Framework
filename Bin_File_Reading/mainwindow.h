@@ -2,26 +2,30 @@
 #define MAINWINDOW_H
 
 #include "messages.h"
+
 #include <QWidget>
 #include <QPushButton>
 #include <QLineEdit>
 #include <QFile>
+#include <QFileInfo>
 #include <QSlider>
 #include <QCheckBox>
+#include <QVector>
+#include <QTextStream>
 
 /**
  * @class BinaryFileReader
  * @brief
  *  High-performance binary log reader with:
+ *  - Forward-only buffered byte-wise scan (NO SEEK)
  *  - Skip % jump
- *  - Slider-based seeking (like video player)
- *  - Pause/Resume
+ *  - Slider-based restart
+ *  - Pause / Resume
  *  - Cancel
- *  - Single unified analysis function
- *  - Real-time progress bar updates
+ *  - Multiple output files
+ *  - Throttled real-time progress updates
  *
- *  This class reads radar-like PSP binary logs using fixed structures.
- *  It supports dynamic re-seeking while processing.
+ *  Designed for large radar / PSP binary logs.
  */
 class BinaryFileReader : public QWidget
 {
@@ -32,17 +36,29 @@ public:
     ~BinaryFileReader();
 
 private slots:
-    void openFile();         // Select input .bin file
-    void analysisFile();     // Start/Restart full analysis
-    void skipPressed();      // Manual skip % (before analysis)
-    void sliderMoved();      // Slider seek (before & during analysis)
-    void togglePause();      // Pause/Resume processing
-    void cancelProcessing(); // Cancel processing immediately
+    void openFile();             // Select input .bin file
+    void analysisFile();         // Start / Restart analysis
+    void skipPressed();          // Manual skip % (before analysis)
+    void sliderMoved();          // Slider seek (restart-based)
+    void togglePause();          // Pause / Resume processing
+    void cancelProcessing();     // Cancel processing immediately
 
 private:
-    void setupUI();          // Build UI elements
-    void setupConnections(); // Connect signals/slots
+    // -------- UI SETUP --------
+    void setupUI();
+    void setupConnections();
 
+    // -------- FILE HELPERS --------
+    bool openOutputFile(QFile &file,
+                        const QFileInfo &fileInfo,
+                        const QString &extension);
+
+    bool openAllOutputFiles(const QFileInfo &fileInfo);
+
+    // -------- DATA WRITERS --------
+    void writePspData(const PSP_DATA &data, QFile &pspOutputFile);
+
+    static QString toHex(quint32 value, int width = 4);
 
 private:
     // -------- UI ELEMENTS --------
@@ -56,22 +72,25 @@ private:
     QSlider     *progressSlider;
     QCheckBox   *showCheckBox;
 
-    // -------- DATA / STATES --------
+    // -------- FILES --------
     QString filePath;
     QFile   binFile;
 
-    QString pspOutputFilePath;
     QFile   pspOutputFile;
-    QString stsOutputFilePath;
-    QFile stsOutputFile;
-    bool header;
-    quint32 count;
+    QFile   stsOutputFile;
+    QFile   spOutputFile;
+    QFile   spCenOutputFile;
+    QFile   logOutputFile;
 
-    quint32 skipPercent;     // Current skip % position
-    bool isProcessing;       // True while analysis loop runs
-    bool stopRequested;      // For slider/skip restart
-    bool pauseRequested;     // For pause/resume
-    bool cancelRequested;    // For cancel
+    // -------- STATE FLAGS --------
+    quint32 skipPercent {0};
+    bool isProcessing   {false};
+    bool stopRequested  {false};
+    bool pauseRequested {false};
+    bool cancelRequested{false};
+
+    bool header {true};
+    quint32 count {0};
 
     // -------- BINARY STRUCTS --------
     DLOG_HEADER strctLogHdr;
@@ -79,16 +98,22 @@ private:
     DWELL_DATA  strctDwlData;
     RPTS        strctRpts;
 
-    // ======== FRAME STRUCT FOR SORTING ========
-    struct PspFrame {
+    // -------- OPTIONAL: FRAME STORAGE --------
+    struct PspFrame
+    {
         DLOG_HEADER hdr;
-        DWELL_DATA dwell;
-        PSP_DATA psp;
+        DWELL_DATA  dwell;
+        PSP_DATA    psp;
     };
 
     QVector<PspFrame> pspFrames;
 
-    void writePspData(const PSP_DATA &strctPspData, QFile &pspOutputFile);
-    static QString toHex(quint32 value, int width=4);
+    struct OutputSpec
+    {
+        QFile* file;
+        QString extension;
+    };
+
 };
+
 #endif // MAINWINDOW_H
