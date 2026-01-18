@@ -327,5 +327,12 @@ struct FILTER_DATA{
     WORD noted_13;
 };
 #pragma pack(pop)
+#pragma pack(push, 1)
+struct RDP_Error
+{
+    char buf[4];
+};
+#pragma pack(pop)
+
 
 #endif // MESSAGES_H

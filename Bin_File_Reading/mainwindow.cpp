@@ -58,9 +58,40 @@ void BinaryFileReader::setupUI()
     cancelButton->setEnabled(false);
 
     // SLIDER
-    progressSlider = new QSlider(Qt::Horizontal);
+    progressSlider = new QSlider(Qt::Horizontal, this);
     progressSlider->setRange(0, 100);
     progressSlider->setTracking(false); // Trigger only on release
+
+    // ---- Slider styling (HEIGHT + HANDLE SIZE) ----
+    progressSlider->setStyleSheet(R"(
+    QSlider::groove:horizontal {
+        height: 8px;
+        background: #D5D8DC;
+        border-radius: 4px;
+    }
+
+    QSlider::handle:horizontal {
+        background: #2E86C1;
+        border: 2px solid #1B4F72;
+        width: 18px;
+        height: 18px;
+        margin: -6px 0;
+        border-radius: 9px;
+    }
+
+    QSlider::handle:horizontal:hover {
+        background: #5DADE2;
+    }
+
+    QSlider::sub-page:horizontal {
+        background: #5DADE2;
+        border-radius: 4px;
+    }
+    )");
+    // ---- Percentage label ----
+    progressLabel = new QLabel("0 %", this);
+    progressLabel->setAlignment(Qt::AlignCenter);
+    progressLabel->setMinimumWidth(50);
 
     showCheckBox = new QCheckBox("Show");
 
@@ -74,6 +105,7 @@ void BinaryFileReader::setupUI()
     QHBoxLayout *mid = new QHBoxLayout;
     mid->addWidget(processButton);
     mid->addWidget(progressSlider);
+    mid->addWidget(progressLabel);
     mid->addWidget(pauseButton);
     mid->addWidget(cancelButton);
     mid->addWidget(showCheckBox);
@@ -108,24 +140,40 @@ void BinaryFileReader::setupConnections()
 void BinaryFileReader::openFile()
 {
     filePath = QFileDialog::getOpenFileName(
-        this,"Open Binary File","","Binary Files (*.bin);;All Files (*)");
+        this,   // ✅ parent (important)
+        "Open Binary File",
+        "",
+        "Binary Files (*.bin);;All Files (*)",
+        nullptr,
+        QFileDialog::DontUseNativeDialog   // ✅ GTK warning fix
+        );
 
-    if(filePath.isEmpty()) return;
+    if (filePath.isEmpty())
+        return;
 
     fileNameEdit->setText(filePath);
     openFileButton->setStyleSheet("background:lightgreen;");
 }
+
 void BinaryFileReader::skipPressed()
 {
-    bool ok;
-    int p = skipLineEdit->text().toInt(&ok);
-    if(!ok) return;
+    bool ok = false;
+    int p = skipLineEdit->text().toInt(&ok);  // ✅ int
 
-    skipPercent = p;
+    if (!ok || p < 0 || (p > 100))
+    {
+        QMessageBox::warning(
+            this,
+            "Input Error",
+            "Please enter a number between 0 and 100"
+            );
+        return;
+    }
+
+    skipPercent = static_cast<quint32>(p);  // ✅ safe conversion
     progressSlider->setValue(p);
-
-    qDebug() << "Skip % set to" << skipPercent;
 }
+
 void BinaryFileReader::sliderMoved()
 {
     // BEFORE analysis: only set skip%
@@ -146,6 +194,7 @@ void BinaryFileReader::sliderMoved()
 
     analysisFile();  // Restart read from new position
 }
+
 void BinaryFileReader::togglePause()
 {
     pauseRequested = !pauseRequested;
@@ -286,12 +335,17 @@ void BinaryFileReader::analysisFile()
         processed += n;
 
         // ---- UI update (throttled) ----
-        static int uiTick = 0;
-        if (++uiTick % 200 == 0) {
-            int progress = static_cast<int>((processed * 100) / totalSize);
-            progressSlider->setValue(progress);
-            QApplication::processEvents();
+        static int tick = 0;
+        if (++tick % 300 == 0)
+        {
+            int progressPercent = int((processed * 100) / totalSize);
+
+            progressSlider->setValue(progressPercent);
+            progressLabel->setText(QString("%1 %").arg(progressPercent));
+
+            qApp->processEvents();
         }
+
     }
 
     progressSlider->setValue(100);

@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QVector>
 #include <QTextStream>
+#include <QLabel>
 
 /**
  * @class BinaryFileReader
@@ -70,6 +71,7 @@ private:
     QPushButton *pauseButton;
     QPushButton *cancelButton;
     QSlider     *progressSlider;
+    QLabel *progressLabel;
     QCheckBox   *showCheckBox;
 
     // -------- FILES --------
