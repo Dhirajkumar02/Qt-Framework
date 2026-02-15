@@ -13,6 +13,10 @@
 #include <QVector>
 #include <QTextStream>
 #include <QLabel>
+#include <QGroupBox>
+#include <QRadioButton>
+#include <QGridLayout>
+#include <QButtonGroup>
 
 /**
  * @class BinaryFileReader
@@ -73,6 +77,18 @@ private:
     QSlider     *progressSlider;
     QLabel *progressLabel;
     QCheckBox   *showCheckBox;
+    QGroupBox *analysisBox;
+    QRadioButton *analysisRadio;
+    QCheckBox *generateAllFiles;
+    QCheckBox *showAllCheck;
+    QGroupBox *replayBox;
+    QRadioButton *replayRadio;
+    QCheckBox *selectAllTracks;
+    QLineEdit *trackLineEdit;
+    QLineEdit *rangeMinEdit;
+    QLineEdit *rangeMaxEdit;
+    QGridLayout *replayLayout;
+    QButtonGroup *modeGroup;
 
     // -------- FILES --------
     QString filePath;

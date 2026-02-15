@@ -33,89 +33,196 @@ BinaryFileReader::~BinaryFileReader() {}
 
 void BinaryFileReader::setupUI()
 {
-    // FILE SELECTION UI
-    openFileButton = new QPushButton("Open File");
+    // =============================
+    // WINDOW SETTINGS
+    // =============================
+    resize(1000, 650);
+    setMinimumSize(750, 500);
+
+    // =============================
+    // FILE SECTION (TOP)
+    // =============================
+    openFileButton = new QPushButton("Browse");
     fileNameEdit = new QLineEdit;
     fileNameEdit->setPlaceholderText("Select .bin file");
+    fileNameEdit->setMinimumWidth(250);
 
-    // SKIP % INPUT
     skipLineEdit = new QLineEdit;
     skipLineEdit->setPlaceholderText("Skip %");
     skipLineEdit->setMaximumWidth(80);
 
     skipButton = new QPushButton("Skip");
-    skipButton->setEnabled(false);
 
-    // MAIN PROCESS BUTTON
-    processButton = new QPushButton("Analysis File");
-    processButton->setEnabled(false);
+    QHBoxLayout *topLayout = new QHBoxLayout;
+    topLayout->addWidget(openFileButton);
+    topLayout->addWidget(fileNameEdit, 1);
+    topLayout->addWidget(skipLineEdit);
+    topLayout->addWidget(skipButton);
 
-    // PLAYBACK CONTROLS
+    // =============================
+    // ANALYSIS GROUP
+    // =============================
+    analysisBox = new QGroupBox("Analysis");
+
+    analysisRadio = new QRadioButton("Analysis Mode");
+    generateAllFiles = new QCheckBox("Generate All");
+    showAllCheck = new QCheckBox("Show All");
+
+    QVBoxLayout *analysisLayout = new QVBoxLayout;
+    analysisLayout->addWidget(analysisRadio);
+    analysisLayout->addWidget(generateAllFiles);
+    analysisLayout->addWidget(showAllCheck);
+    analysisLayout->addStretch();
+
+    analysisBox->setLayout(analysisLayout);
+    analysisBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    // =============================
+    // REPLAY GROUP
+    // =============================
+    replayBox = new QGroupBox("Replay");
+
+    replayRadio = new QRadioButton("Replay Mode");
+    selectAllTracks = new QCheckBox("Select All Tracks");
+
+    trackLineEdit = new QLineEdit;
+    trackLineEdit->setPlaceholderText("Track ID (1-1000)");
+    trackLineEdit->setMinimumWidth(150);
+
+    rangeMinEdit = new QLineEdit;
+    rangeMaxEdit = new QLineEdit;
+
+    rangeMinEdit->setPlaceholderText("Range Min");
+    rangeMaxEdit->setPlaceholderText("Range Max");
+
+    QGridLayout *replayLayout = new QGridLayout;
+    replayLayout->addWidget(replayRadio, 0, 0);
+    replayLayout->addWidget(selectAllTracks, 1, 0);
+
+    replayLayout->addWidget(new QLabel("Track ID:"), 2, 0);
+    replayLayout->addWidget(trackLineEdit, 2, 1);
+
+    replayLayout->addWidget(new QLabel("Range Min:"), 3, 0);
+    replayLayout->addWidget(rangeMinEdit, 3, 1);
+
+    replayLayout->addWidget(new QLabel("Range Max:"), 4, 0);
+    replayLayout->addWidget(rangeMaxEdit, 4, 1);
+
+    replayLayout->setRowStretch(5, 1);
+
+    replayBox->setLayout(replayLayout);
+    replayBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    // Make radio buttons exclusive
+    modeGroup = new QButtonGroup(this);
+    modeGroup->addButton(analysisRadio);
+    modeGroup->addButton(replayRadio);
+
+    // =============================
+    // MIDDLE SECTION
+    // =============================
+    QHBoxLayout *middleLayout = new QHBoxLayout;
+    middleLayout->addWidget(analysisBox, 1);
+    middleLayout->addWidget(replayBox, 1);
+
+    // =============================
+    // BOTTOM CONTROLS
+    // =============================
+    processButton = new QPushButton("Start");
     pauseButton = new QPushButton("Pause");
-    pauseButton->setEnabled(false);
-
     cancelButton = new QPushButton("Cancel");
-    cancelButton->setEnabled(false);
 
-    // SLIDER
-    progressSlider = new QSlider(Qt::Horizontal, this);
+    progressSlider = new QSlider(Qt::Horizontal);
     progressSlider->setRange(0, 100);
-    progressSlider->setTracking(false); // Trigger only on release
+    progressSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    // ---- Slider styling (HEIGHT + HANDLE SIZE) ----
-    progressSlider->setStyleSheet(R"(
-    QSlider::groove:horizontal {
-        height: 8px;
-        background: #D5D8DC;
-        border-radius: 4px;
-    }
-
-    QSlider::handle:horizontal {
-        background: #2E86C1;
-        border: 2px solid #1B4F72;
-        width: 18px;
-        height: 18px;
-        margin: -6px 0;
-        border-radius: 9px;
-    }
-
-    QSlider::handle:horizontal:hover {
-        background: #5DADE2;
-    }
-
-    QSlider::sub-page:horizontal {
-        background: #5DADE2;
-        border-radius: 4px;
-    }
-    )");
-    // ---- Percentage label ----
-    progressLabel = new QLabel("0 %", this);
-    progressLabel->setAlignment(Qt::AlignCenter);
+    progressLabel = new QLabel("0 %");
     progressLabel->setMinimumWidth(50);
 
-    showCheckBox = new QCheckBox("Show");
+    QHBoxLayout *bottomLayout = new QHBoxLayout;
+    bottomLayout->addWidget(processButton);
+    bottomLayout->addWidget(progressSlider, 1);
+    bottomLayout->addWidget(progressLabel);
+    bottomLayout->addWidget(pauseButton);
+    bottomLayout->addWidget(cancelButton);
 
-    // ---- LAYOUT A (Recommended) ----
-    QHBoxLayout *top = new QHBoxLayout;
-    top->addWidget(openFileButton);
-    top->addWidget(fileNameEdit);
-    top->addWidget(skipLineEdit);
-    top->addWidget(skipButton);
+    // =============================
+    // MAIN LAYOUT
+    // =============================
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->addLayout(topLayout);
+    mainLayout->addLayout(middleLayout, 1);
+    mainLayout->addLayout(bottomLayout);
 
-    QHBoxLayout *mid = new QHBoxLayout;
-    mid->addWidget(processButton);
-    mid->addWidget(progressSlider);
-    mid->addWidget(progressLabel);
-    mid->addWidget(pauseButton);
-    mid->addWidget(cancelButton);
-    mid->addWidget(showCheckBox);
-    mid->addStretch();
+    setStyleSheet(R"(
 
-    QVBoxLayout *main = new QVBoxLayout(this);
-    main->addLayout(top);
-    main->addLayout(mid);
-    main->addStretch();
+QWidget {
+    background-color: #F4F6F7;
+    font-family: Segoe UI;
+    font-size: 13px;
 }
+
+QPushButton {
+    background-color: #2E86C1;
+    color: white;
+    border-radius: 5px;
+    padding: 6px 12px;
+}
+
+QPushButton:hover {
+    background-color: #5DADE2;
+}
+
+QPushButton:pressed {
+    background-color: #1B4F72;
+}
+
+QLineEdit {
+    border: 1px solid #BDC3C7;
+    border-radius: 4px;
+    padding: 4px;
+    background: white;
+}
+
+QGroupBox {
+    font-weight: bold;
+    border: 2px solid #D5D8DC;
+    border-radius: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #FFFFFF;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px 0 5px;
+}
+
+QSlider::groove:horizontal {
+    height: 8px;
+    background: #D5D8DC;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #2E86C1;
+    border: 2px solid #1B4F72;
+    width: 18px;
+    height: 18px;
+    margin: -6px 0;
+    border-radius: 9px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #5DADE2;
+    border-radius: 4px;
+}
+
+)");
+
+}
+
 void BinaryFileReader::setupConnections()
 {
     connect(openFileButton,&QPushButton::clicked,this,&BinaryFileReader::openFile);
