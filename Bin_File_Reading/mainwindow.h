@@ -17,20 +17,11 @@
 #include <QRadioButton>
 #include <QGridLayout>
 #include <QButtonGroup>
+#include <QIntValidator>
 
 /**
  * @class BinaryFileReader
- * @brief
- *  High-performance binary log reader with:
- *  - Forward-only buffered byte-wise scan (NO SEEK)
- *  - Skip % jump
- *  - Slider-based restart
- *  - Pause / Resume
- *  - Cancel
- *  - Multiple output files
- *  - Throttled real-time progress updates
- *
- *  Designed for large radar / PSP binary logs.
+ * High-performance binary reader + analysis + replay UI
  */
 class BinaryFileReader : public QWidget
 {
@@ -41,56 +32,106 @@ public:
     ~BinaryFileReader();
 
 private slots:
-    void openFile();             // Select input .bin file
-    void analysisFile();         // Start / Restart analysis
-    void skipPressed();          // Manual skip % (before analysis)
-    void sliderMoved();          // Slider seek (restart-based)
-    void togglePause();          // Pause / Resume processing
-    void cancelProcessing();     // Cancel processing immediately
+    void openFile();
+    void analysisFile();
+    void skipPressed();
+    void sliderMoved();
+    void togglePause();
+    void cancelProcessing();
 
 private:
-    // -------- UI SETUP --------
+    // =============================
+    // UI SETUP
+    // =============================
     void setupUI();
     void setupConnections();
 
-    // -------- FILE HELPERS --------
+    // =============================
+    // FILE HELPERS
+    // =============================
     bool openOutputFile(QFile &file,
                         const QFileInfo &fileInfo,
                         const QString &extension);
 
     bool openAllOutputFiles(const QFileInfo &fileInfo);
 
-    // -------- DATA WRITERS --------
+    // =============================
+    // DATA WRITERS
+    // =============================
     void writePspData(const PSP_DATA &data, QFile &pspOutputFile);
 
     static QString toHex(quint32 value, int width = 4);
 
+    // =============================
+    // REPLAY VALIDATION
+    // =============================
+    bool validateReplayInputs();   // (optional future use)
+
+
 private:
-    // -------- UI ELEMENTS --------
+    // =============================
+    // UI ELEMENTS
+    // =============================
+
+    // Top controls
     QPushButton *openFileButton;
     QLineEdit   *fileNameEdit;
     QLineEdit   *skipLineEdit;
     QPushButton *skipButton;
+
+    // Bottom controls
     QPushButton *processButton;
     QPushButton *pauseButton;
     QPushButton *cancelButton;
     QSlider     *progressSlider;
-    QLabel *progressLabel;
-    QCheckBox   *showCheckBox;
-    QGroupBox *analysisBox;
+    QLabel      *progressLabel;
+
+    // ---------------- Analysis ----------------
+    QGroupBox    *analysisBox;
     QRadioButton *analysisRadio;
-    QCheckBox *generateAllFiles;
-    QCheckBox *showAllCheck;
-    QGroupBox *replayBox;
+    QCheckBox    *generateAllFiles;
+    QCheckBox    *showCheckBox;
+
+    // ---------------- Replay ----------------
+    QGroupBox    *replayBox;
     QRadioButton *replayRadio;
+
     QCheckBox *selectAllTracks;
     QLineEdit *trackLineEdit;
+
+    // Filter checkboxes
+    QCheckBox *chkRange;
+    QCheckBox *chkAzm;
+    QCheckBox *chkEle;
+    QCheckBox *chkTime;
+
+    // Range inputs
     QLineEdit *rangeMinEdit;
     QLineEdit *rangeMaxEdit;
-    QGridLayout *replayLayout;
-    QButtonGroup *modeGroup;
 
-    // -------- FILES --------
+    // Azm inputs
+    QLineEdit *azmMinEdit;
+    QLineEdit *azmMaxEdit;
+
+    // Ele inputs
+    QLineEdit *eleMinEdit;
+    QLineEdit *eleMaxEdit;
+
+    // Time inputs
+    QLineEdit *timeMinEdit;
+    QLineEdit *timeMaxEdit;
+
+    // Layout helpers
+    QGridLayout *replayLayout;
+
+    // Button groups
+    QButtonGroup *modeGroup;
+    QButtonGroup *filterGroup;
+
+
+    // =============================
+    // FILES
+    // =============================
     QString filePath;
     QFile   binFile;
 
@@ -100,7 +141,10 @@ private:
     QFile   spCenOutputFile;
     QFile   logOutputFile;
 
-    // -------- STATE FLAGS --------
+
+    // =============================
+    // STATE FLAGS
+    // =============================
     quint32 skipPercent {0};
     bool isProcessing   {false};
     bool stopRequested  {false};
@@ -110,13 +154,19 @@ private:
     bool header {true};
     quint32 count {0};
 
-    // -------- BINARY STRUCTS --------
+
+    // =============================
+    // BINARY STRUCTS
+    // =============================
     DLOG_HEADER strctLogHdr;
     PSP_DATA    strctPspData;
     DWELL_DATA  strctDwlData;
     RPTS        strctRpts;
 
-    // -------- OPTIONAL: FRAME STORAGE --------
+
+    // =============================
+    // OPTIONAL FRAME STORAGE
+    // =============================
     struct PspFrame
     {
         DLOG_HEADER hdr;
@@ -126,12 +176,15 @@ private:
 
     QVector<PspFrame> pspFrames;
 
+
+    // =============================
+    // OUTPUT SPEC HELPER
+    // =============================
     struct OutputSpec
     {
         QFile* file;
         QString extension;
     };
-
 };
 
 #endif // MAINWINDOW_H

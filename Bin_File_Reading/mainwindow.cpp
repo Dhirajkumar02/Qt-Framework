@@ -33,9 +33,6 @@ BinaryFileReader::~BinaryFileReader() {}
 
 void BinaryFileReader::setupUI()
 {
-    // =============================
-    // WINDOW SETTINGS
-    // =============================
     resize(1000, 650);
     setMinimumSize(750, 500);
 
@@ -59,6 +56,7 @@ void BinaryFileReader::setupUI()
     topLayout->addWidget(skipLineEdit);
     topLayout->addWidget(skipButton);
 
+
     // =============================
     // ANALYSIS GROUP
     // =============================
@@ -66,16 +64,16 @@ void BinaryFileReader::setupUI()
 
     analysisRadio = new QRadioButton("Analysis Mode");
     generateAllFiles = new QCheckBox("Generate All");
-    showAllCheck = new QCheckBox("Show All");
+    showCheckBox = new QCheckBox("Show All");
 
     QVBoxLayout *analysisLayout = new QVBoxLayout;
     analysisLayout->addWidget(analysisRadio);
     analysisLayout->addWidget(generateAllFiles);
-    analysisLayout->addWidget(showAllCheck);
+    analysisLayout->addWidget(showCheckBox);
     analysisLayout->addStretch();
 
     analysisBox->setLayout(analysisLayout);
-    analysisBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
 
     // =============================
     // REPLAY GROUP
@@ -89,34 +87,104 @@ void BinaryFileReader::setupUI()
     trackLineEdit->setPlaceholderText("Track ID (1-1000)");
     trackLineEdit->setMinimumWidth(150);
 
+
+    // ---- Filter Checkboxes ----
+    chkRange = new QCheckBox("Range");
+    chkAzm   = new QCheckBox("Azm");
+    chkEle   = new QCheckBox("Ele");
+    chkTime  = new QCheckBox("Time");
+
+    // ---- LineEdits ----
     rangeMinEdit = new QLineEdit;
     rangeMaxEdit = new QLineEdit;
 
-    rangeMinEdit->setPlaceholderText("Range Min");
-    rangeMaxEdit->setPlaceholderText("Range Max");
+    azmMinEdit = new QLineEdit;
+    azmMaxEdit = new QLineEdit;
 
+    eleMinEdit = new QLineEdit;
+    eleMaxEdit = new QLineEdit;
+
+    timeMinEdit = new QLineEdit;
+    timeMaxEdit = new QLineEdit;
+
+    // ---- Labels ----
+    QLabel *rangeMinLbl = new QLabel("Min");
+    QLabel *rangeMaxLbl = new QLabel("Max");
+
+    QLabel *azmMinLbl = new QLabel("Min");
+    QLabel *azmMaxLbl = new QLabel("Max");
+
+    QLabel *eleMinLbl = new QLabel("Min");
+    QLabel *eleMaxLbl = new QLabel("Max");
+
+    QLabel *timeMinLbl = new QLabel("Min");
+    QLabel *timeMaxLbl = new QLabel("Max");
+
+
+    // ---- Exclusive Filter Group ----
+    filterGroup = new QButtonGroup(this);
+    filterGroup->addButton(chkRange);
+    filterGroup->addButton(chkAzm);
+    filterGroup->addButton(chkEle);
+    filterGroup->addButton(chkTime);
+    filterGroup->setExclusive(true);
+
+
+    // =============================
+    // REPLAY LAYOUT
+    // =============================
     QGridLayout *replayLayout = new QGridLayout;
-    replayLayout->addWidget(replayRadio, 0, 0);
-    replayLayout->addWidget(selectAllTracks, 1, 0);
 
-    replayLayout->addWidget(new QLabel("Track ID:"), 2, 0);
-    replayLayout->addWidget(trackLineEdit, 2, 1);
+    int row = 0;
 
-    replayLayout->addWidget(new QLabel("Range Min:"), 3, 0);
-    replayLayout->addWidget(rangeMinEdit, 3, 1);
+    replayLayout->addWidget(replayRadio, row++, 0, 1, 4);
 
-    replayLayout->addWidget(new QLabel("Range Max:"), 4, 0);
-    replayLayout->addWidget(rangeMaxEdit, 4, 1);
+    replayLayout->addWidget(selectAllTracks, row, 0);
+    replayLayout->addWidget(new QLabel("Track ID:"), row, 1);
+    replayLayout->addWidget(trackLineEdit, row++, 2, 1, 2);
 
-    replayLayout->setRowStretch(5, 1);
+
+    // Range
+    replayLayout->addWidget(chkRange, row, 0);
+    replayLayout->addWidget(rangeMinLbl, row, 1);
+    replayLayout->addWidget(rangeMinEdit, row, 2);
+    replayLayout->addWidget(rangeMaxLbl, row, 3);
+    replayLayout->addWidget(rangeMaxEdit, row++, 4);
+
+    // Azm
+    replayLayout->addWidget(chkAzm, row, 0);
+    replayLayout->addWidget(azmMinLbl, row, 1);
+    replayLayout->addWidget(azmMinEdit, row, 2);
+    replayLayout->addWidget(azmMaxLbl, row, 3);
+    replayLayout->addWidget(azmMaxEdit, row++, 4);
+
+    // Ele
+    replayLayout->addWidget(chkEle, row, 0);
+    replayLayout->addWidget(eleMinLbl, row, 1);
+    replayLayout->addWidget(eleMinEdit, row, 2);
+    replayLayout->addWidget(eleMaxLbl, row, 3);
+    replayLayout->addWidget(eleMaxEdit, row++, 4);
+
+    // Time
+    replayLayout->addWidget(chkTime, row, 0);
+    replayLayout->addWidget(timeMinLbl, row, 1);
+    replayLayout->addWidget(timeMinEdit, row, 2);
+    replayLayout->addWidget(timeMaxLbl, row, 3);
+    replayLayout->addWidget(timeMaxEdit, row++, 4);
+
+    replayLayout->setRowStretch(row, 1);
 
     replayBox->setLayout(replayLayout);
-    replayBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    // Make radio buttons exclusive
+
+    // =============================
+    // MODE GROUP
+    // =============================
     modeGroup = new QButtonGroup(this);
     modeGroup->addButton(analysisRadio);
     modeGroup->addButton(replayRadio);
+    modeGroup->setExclusive(true);
+
 
     // =============================
     // MIDDLE SECTION
@@ -124,6 +192,7 @@ void BinaryFileReader::setupUI()
     QHBoxLayout *middleLayout = new QHBoxLayout;
     middleLayout->addWidget(analysisBox, 1);
     middleLayout->addWidget(replayBox, 1);
+
 
     // =============================
     // BOTTOM CONTROLS
@@ -134,7 +203,6 @@ void BinaryFileReader::setupUI()
 
     progressSlider = new QSlider(Qt::Horizontal);
     progressSlider->setRange(0, 100);
-    progressSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     progressLabel = new QLabel("0 %");
     progressLabel->setMinimumWidth(50);
@@ -146,6 +214,7 @@ void BinaryFileReader::setupUI()
     bottomLayout->addWidget(pauseButton);
     bottomLayout->addWidget(cancelButton);
 
+
     // =============================
     // MAIN LAYOUT
     // =============================
@@ -154,72 +223,18 @@ void BinaryFileReader::setupUI()
     mainLayout->addLayout(middleLayout, 1);
     mainLayout->addLayout(bottomLayout);
 
+    //StyleSheet
     setStyleSheet(R"(
-
-QWidget {
-    background-color: #F4F6F7;
-    font-family: Segoe UI;
-    font-size: 13px;
-}
-
-QPushButton {
-    background-color: #2E86C1;
-    color: white;
-    border-radius: 5px;
-    padding: 6px 12px;
-}
-
-QPushButton:hover {
-    background-color: #5DADE2;
-}
-
-QPushButton:pressed {
-    background-color: #1B4F72;
-}
-
-QLineEdit {
-    border: 1px solid #BDC3C7;
-    border-radius: 4px;
-    padding: 4px;
-    background: white;
-}
-
-QGroupBox {
-    font-weight: bold;
-    border: 2px solid #D5D8DC;
-    border-radius: 8px;
-    margin-top: 10px;
-    padding: 10px;
-    background-color: #FFFFFF;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px 0 5px;
-}
-
-QSlider::groove:horizontal {
-    height: 8px;
-    background: #D5D8DC;
-    border-radius: 4px;
-}
-
-QSlider::handle:horizontal {
-    background: #2E86C1;
-    border: 2px solid #1B4F72;
-    width: 18px;
-    height: 18px;
-    margin: -6px 0;
-    border-radius: 9px;
-}
-
-QSlider::sub-page:horizontal {
-    background: #5DADE2;
-    border-radius: 4px;
-}
-
-)");
+QWidget { background-color: #F4F6F7; font-family: Segoe UI; font-size: 13px; }
+QPushButton { background-color: #2E86C1; color: white; border-radius: 5px; padding: 6px 12px; }
+QPushButton:hover { background-color: #5DADE2; }
+QPushButton:pressed { background-color: #1B4F72; }
+QLineEdit { border: 1px solid #BDC3C7; border-radius: 4px; padding: 4px; background: white; }
+QGroupBox { font-weight: bold; border: 2px solid #D5D8DC; border-radius: 8px; margin-top: 10px; padding: 10px; background-color: #FFFFFF; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px 0 5px; }
+QSlider::groove:horizontal { height: 8px; background: #D5D8DC; border-radius: 4px; }
+QSlider::handle:horizontal { background: #2E86C1; border: 2px solid #1B4F72; width: 18px; height: 18px; margin: -6px 0; border-radius: 9px; }
+QSlider::sub-page:horizontal { background: #5DADE2; border-radius: 4px; } )");
 
 }
 
@@ -232,15 +247,66 @@ void BinaryFileReader::setupConnections()
     connect(pauseButton,&QPushButton::clicked,this,&BinaryFileReader::togglePause);
     connect(cancelButton,&QPushButton::clicked,this,&BinaryFileReader::cancelProcessing);
 
-    // Enable Analysis Button when filename typed
     connect(fileNameEdit,&QLineEdit::textChanged,this,[this](QString t){
         processButton->setEnabled(!t.isEmpty());
     });
 
-    // Enable Skip Button only when skip% valid
     connect(skipLineEdit,&QLineEdit::textChanged,this,[this](QString t){
         bool ok; int p=t.toInt(&ok);
         skipButton->setEnabled(ok && p>=0 && p<100);
+    });
+
+
+    // =============================
+    // FILTER ENABLE LOGIC
+    // =============================
+    auto disableAll = [this]()
+    {
+        rangeMinEdit->setEnabled(false);
+        rangeMaxEdit->setEnabled(false);
+
+        azmMinEdit->setEnabled(false);
+        azmMaxEdit->setEnabled(false);
+
+        eleMinEdit->setEnabled(false);
+        eleMaxEdit->setEnabled(false);
+
+        timeMinEdit->setEnabled(false);
+        timeMaxEdit->setEnabled(false);
+    };
+
+    disableAll();
+
+    connect(chkRange, &QCheckBox::toggled, this, [=](bool checked){
+        disableAll();
+        if (checked) {
+            rangeMinEdit->setEnabled(true);
+            rangeMaxEdit->setEnabled(true);
+        }
+    });
+
+    connect(chkAzm, &QCheckBox::toggled, this, [=](bool checked){
+        disableAll();
+        if (checked) {
+            azmMinEdit->setEnabled(true);
+            azmMaxEdit->setEnabled(true);
+        }
+    });
+
+    connect(chkEle, &QCheckBox::toggled, this, [=](bool checked){
+        disableAll();
+        if (checked) {
+            eleMinEdit->setEnabled(true);
+            eleMaxEdit->setEnabled(true);
+        }
+    });
+
+    connect(chkTime, &QCheckBox::toggled, this, [=](bool checked){
+        disableAll();
+        if (checked) {
+            timeMinEdit->setEnabled(true);
+            timeMaxEdit->setEnabled(true);
+        }
     });
 }
 

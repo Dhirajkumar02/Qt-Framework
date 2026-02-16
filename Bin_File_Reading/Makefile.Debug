@@ -341,6 +341,20 @@ debug/moc_mainwindow.cpp: mainwindow.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QLabel \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlabel.h \
 		../../Qt/6.10.1/mingw_64/include/QtGui/qpicture.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGroupBox \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgroupbox.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QRadioButton \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qradiobutton.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGridLayout \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgridlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayoutitem.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qboxlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QButtonGroup \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qbuttongroup.h \
+		../../Qt/6.10.1/mingw_64/include/QtGui/QIntValidator \
+		../../Qt/6.10.1/mingw_64/include/QtGui/qvalidator.h \
+		../../Qt/6.10.1/mingw_64/include/QtCore/qregularexpression.h \
 		debug/moc_predefs.h \
 		../../Qt/6.10.1/mingw_64/bin/moc.exe
 	E:\Qt\6.10.1\mingw_64\bin\moc.exe $(DEFINES) --include "E:/Qt Framework/Bin_File_Reading/debug/moc_predefs.h" -IE:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -I"E:/Qt Framework/Bin_File_Reading" -IE:/Qt/6.10.1/mingw_64/include -IE:/Qt/6.10.1/mingw_64/include/QtWidgets -IE:/Qt/6.10.1/mingw_64/include/QtGui -IE:/Qt/6.10.1/mingw_64/include/QtCore -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++ -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32 -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include -IC:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed -IC:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include mainwindow.h -o debug\moc_mainwindow.cpp
@@ -598,6 +612,20 @@ debug/main.o: main.cpp mainwindow.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QLabel \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlabel.h \
 		../../Qt/6.10.1/mingw_64/include/QtGui/qpicture.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGroupBox \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgroupbox.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QRadioButton \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qradiobutton.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGridLayout \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgridlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayoutitem.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qboxlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QButtonGroup \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qbuttongroup.h \
+		../../Qt/6.10.1/mingw_64/include/QtGui/QIntValidator \
+		../../Qt/6.10.1/mingw_64/include/QtGui/qvalidator.h \
+		../../Qt/6.10.1/mingw_64/include/QtCore/qregularexpression.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QApplication \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qapplication.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o debug\main.o main.cpp
@@ -832,6 +860,20 @@ debug/mainwindow.o: mainwindow.cpp mainwindow.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QLabel \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlabel.h \
 		../../Qt/6.10.1/mingw_64/include/QtGui/qpicture.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGroupBox \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgroupbox.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QRadioButton \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qradiobutton.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QGridLayout \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgridlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayoutitem.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qboxlayout.h \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/QButtonGroup \
+		../../Qt/6.10.1/mingw_64/include/QtWidgets/qbuttongroup.h \
+		../../Qt/6.10.1/mingw_64/include/QtGui/QIntValidator \
+		../../Qt/6.10.1/mingw_64/include/QtGui/qvalidator.h \
+		../../Qt/6.10.1/mingw_64/include/QtCore/qregularexpression.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QApplication \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qapplication.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QFileDialog \
@@ -843,10 +885,6 @@ debug/mainwindow.o: mainwindow.cpp mainwindow.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qmessagebox.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QHBoxLayout \
-		../../Qt/6.10.1/mingw_64/include/QtWidgets/qboxlayout.h \
-		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayout.h \
-		../../Qt/6.10.1/mingw_64/include/QtWidgets/qlayoutitem.h \
-		../../Qt/6.10.1/mingw_64/include/QtWidgets/qgridlayout.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/QVBoxLayout \
 		../../Qt/6.10.1/mingw_64/include/QtCore/QThread \
 		../../Qt/6.10.1/mingw_64/include/QtCore/QDebug \
@@ -860,8 +898,6 @@ debug/mainwindow.o: mainwindow.cpp mainwindow.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qstyleoption.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qabstractspinbox.h \
-		../../Qt/6.10.1/mingw_64/include/QtGui/qvalidator.h \
-		../../Qt/6.10.1/mingw_64/include/QtCore/qregularexpression.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qstyle.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qtabbar.h \
 		../../Qt/6.10.1/mingw_64/include/QtWidgets/qtabwidget.h \
