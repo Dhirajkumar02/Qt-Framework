@@ -650,3 +650,77 @@ bool BinaryFileReader::openOutputFile(QFile &file,
 
     return file.open(QIODevice::WriteOnly | QIODevice::Text);
 }
+
+bool BinaryFileReader::validateReplayInputs()
+{
+    // -------- Range --------
+    if (chkRange->isChecked())
+    {
+        bool ok1, ok2;
+
+        int minVal = rangeMinEdit->text().toInt(&ok1);
+        int maxVal = rangeMaxEdit->text().toInt(&ok2);
+
+        if (!ok1 || !ok2 || (minVal < 1000) || (maxVal > 2000) || minVal > maxVal)
+        {
+            QMessageBox::warning(this,
+                                 "Range Error",
+                                 "Range must be between 1000 and 2000");
+            return false;
+        }
+    }
+
+    // -------- Azimuth --------
+    if (chkAzm->isChecked())
+    {
+        bool ok1, ok2;
+
+        int minVal = azmMinEdit->text().toInt(&ok1);
+        int maxVal = azmMaxEdit->text().toInt(&ok2);
+
+        if (!ok1 || !ok2 || (minVal < 100) || (maxVal > 200) || minVal > maxVal)
+        {
+            QMessageBox::warning(this,
+                                 "Azimuth Error",
+                                 "Azm must be between 100 and 200");
+            return false;
+        }
+    }
+
+    // -------- Elevation --------
+    if (chkEle->isChecked())
+    {
+        bool ok1, ok2;
+
+        int minVal = eleMinEdit->text().toInt(&ok1);
+        int maxVal = eleMaxEdit->text().toInt(&ok2);
+
+        if (!ok1 || !ok2 || minVal > maxVal)
+        {
+            QMessageBox::warning(this,
+                                 "Elevation Error",
+                                 "Invalid elevation range");
+            return false;
+        }
+    }
+
+    // -------- Time --------
+    if (chkTime->isChecked())
+    {
+        bool ok1, ok2;
+
+        int minVal = timeMinEdit->text().toInt(&ok1);
+        int maxVal = timeMaxEdit->text().toInt(&ok2);
+
+        if (!ok1 || !ok2 || minVal > maxVal)
+        {
+            QMessageBox::warning(this,
+                                 "Time Error",
+                                 "Invalid time range");
+            return false;
+        }
+    }
+
+    return true;   // ✅ all good
+}
+
