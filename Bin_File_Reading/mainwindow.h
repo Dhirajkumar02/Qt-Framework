@@ -18,11 +18,10 @@
 #include <QGridLayout>
 #include <QButtonGroup>
 #include <QIntValidator>
+#include <QDoubleValidator>
+#include <QPropertyAnimation>
+#include <QComboBox>
 
-/**
- * @class BinaryFileReader
- * High-performance binary reader + analysis + replay UI
- */
 class BinaryFileReader : public QWidget
 {
     Q_OBJECT
@@ -46,6 +45,10 @@ private:
     void setupUI();
     void setupConnections();
 
+    void updateProgress(int value);
+    void connectMinMaxValidation(QLineEdit *minEdit, QLineEdit *maxEdit);
+    void validateMinMax(QLineEdit *minEdit, QLineEdit *maxEdit);
+
     // =============================
     // FILE HELPERS
     // =============================
@@ -62,72 +65,62 @@ private:
 
     static QString toHex(quint32 value, int width = 4);
 
-    // =============================
-    // REPLAY VALIDATION
-    // =============================
-    bool validateReplayInputs();   // (optional future use)
-
+    bool validateReplayInputs();
 
 private:
     // =============================
     // UI ELEMENTS
     // =============================
 
-    // Top controls
+    // Top
     QPushButton *openFileButton;
     QLineEdit   *fileNameEdit;
     QLineEdit   *skipLineEdit;
     QPushButton *skipButton;
 
-    // Bottom controls
+    // Bottom
     QPushButton *processButton;
     QPushButton *pauseButton;
     QPushButton *cancelButton;
     QSlider     *progressSlider;
     QLabel      *progressLabel;
+    QComboBox   *speedCombo;
 
-    // ---------------- Analysis ----------------
+    // Analysis
     QGroupBox    *analysisBox;
     QRadioButton *analysisRadio;
     QCheckBox    *generateAllFiles;
     QCheckBox    *showCheckBox;
 
-    // ---------------- Replay ----------------
+    // Replay
     QGroupBox    *replayBox;
     QRadioButton *replayRadio;
 
-    QCheckBox *selectAllTracks;
+    QCheckBox *allTracks;
+    QCheckBox *selectedTracks;
     QLineEdit *trackLineEdit;
 
-    // Filter checkboxes
     QCheckBox *chkRange;
     QCheckBox *chkAzm;
     QCheckBox *chkEle;
     QCheckBox *chkTime;
 
-    // Range inputs
     QLineEdit *rangeMinEdit;
     QLineEdit *rangeMaxEdit;
 
-    // Azm inputs
     QLineEdit *azmMinEdit;
     QLineEdit *azmMaxEdit;
 
-    // Ele inputs
     QLineEdit *eleMinEdit;
     QLineEdit *eleMaxEdit;
 
-    // Time inputs
     QLineEdit *timeMinEdit;
     QLineEdit *timeMaxEdit;
 
-    // Layout helpers
     QGridLayout *replayLayout;
 
-    // Button groups
     QButtonGroup *modeGroup;
     QButtonGroup *filterGroup;
-
 
     // =============================
     // FILES
@@ -141,7 +134,6 @@ private:
     QFile   spCenOutputFile;
     QFile   logOutputFile;
 
-
     // =============================
     // STATE FLAGS
     // =============================
@@ -154,7 +146,6 @@ private:
     bool header {true};
     quint32 count {0};
 
-
     // =============================
     // BINARY STRUCTS
     // =============================
@@ -163,10 +154,6 @@ private:
     DWELL_DATA  strctDwlData;
     RPTS        strctRpts;
 
-
-    // =============================
-    // OPTIONAL FRAME STORAGE
-    // =============================
     struct PspFrame
     {
         DLOG_HEADER hdr;
@@ -175,16 +162,6 @@ private:
     };
 
     QVector<PspFrame> pspFrames;
-
-
-    // =============================
-    // OUTPUT SPEC HELPER
-    // =============================
-    struct OutputSpec
-    {
-        QFile* file;
-        QString extension;
-    };
 };
 
 #endif // MAINWINDOW_H
