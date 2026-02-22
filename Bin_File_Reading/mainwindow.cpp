@@ -10,179 +10,326 @@
 #include <QDebug>
 #include <QListWidgetItem>
 #include <QListWidget>
-#include <QCoreApplication>
 
+/**
+ * Constructor – initializes state variables and UI
+ */
 BinaryFileReader::BinaryFileReader(QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent),
+    skipPercent(0),
+    isProcessing(false),
+    stopRequested(false),
+    pauseRequested(false),
+    cancelRequested(false)
 {
     setWindowTitle("Binary File Reader");
-    resize(1000,650);
-
+    resize(1000, 650);
     setupUI();
     setupConnections();
+    header=false;
 }
 
-BinaryFileReader::~BinaryFileReader(){}
-
-
-// =====================================================
-// UI SETUP
-// =====================================================
+BinaryFileReader::~BinaryFileReader() {}
 
 void BinaryFileReader::setupUI()
 {
-    // ---------- TOP ----------
-    openFileButton = new QPushButton("Browse");
-    fileNameEdit   = new QLineEdit;
-    skipLineEdit   = new QLineEdit;
-    skipButton     = new QPushButton("Skip");
 
+    // =============================
+    // FILE SECTION (TOP)
+    // =============================
+    openFileButton = new QPushButton("Browse");
+    fileNameEdit = new QLineEdit;
     fileNameEdit->setPlaceholderText("Select .bin file");
+    fileNameEdit->setMinimumWidth(250);
+
+    skipLineEdit = new QLineEdit;
     skipLineEdit->setPlaceholderText("Skip %");
+    skipLineEdit->setMaximumWidth(80);
+
+    skipButton = new QPushButton("Skip");
 
     QHBoxLayout *topLayout = new QHBoxLayout;
     topLayout->addWidget(openFileButton);
-    topLayout->addWidget(fileNameEdit,1);
+    topLayout->addWidget(fileNameEdit, 1);
     topLayout->addWidget(skipLineEdit);
     topLayout->addWidget(skipButton);
 
 
-    // ---------- MODE ----------
-    analysisRadio = new QRadioButton("Analysis Mode");
-    replayRadio   = new QRadioButton("Replay Mode");
-
-    QHBoxLayout *modeLayout = new QHBoxLayout;
-    modeLayout->addStretch();
-    modeLayout->addWidget(analysisRadio);
-    modeLayout->addSpacing(40);
-    modeLayout->addWidget(replayRadio);
-    modeLayout->addStretch();
-
-
-    // ---------- ANALYSIS ----------
+    // =============================
+    // ANALYSIS GROUP
+    // =============================
     analysisBox = new QGroupBox("Analysis");
+
+    analysisRadio = new QRadioButton("Analysis Mode");
     generateAllFiles = new QCheckBox("Generate All");
-    showCheckBox     = new QCheckBox("Show All");
+    showCheckBox = new QCheckBox("Show All");
 
-    QVBoxLayout *analysisLayout = new QVBoxLayout;
-    analysisLayout->addWidget(generateAllFiles);
-    analysisLayout->addWidget(showCheckBox);
-    analysisLayout->addStretch();
+    QGridLayout *analysisLayout = new QGridLayout;
 
+    int row1 = 0;
+    analysisLayout->addWidget(analysisRadio, row1++, 0, 1, 5, Qt::AlignHCenter);
+    analysisLayout->addWidget(generateAllFiles, row1++, 0);
+    analysisLayout->addWidget(showCheckBox, row1++, 0);
+
+    analysisLayout->setColumnStretch(0,1);
+    analysisLayout->setColumnStretch(1,1);
+    analysisLayout->setColumnStretch(2,1);
+    analysisLayout->setColumnStretch(3,1);
+    analysisLayout->setColumnStretch(4,1);
+
+    analysisLayout->setVerticalSpacing(10);
+
+    analysisLayout->setRowStretch(row1, 1);
     analysisBox->setLayout(analysisLayout);
 
 
-    // ---------- REPLAY ----------
+    // =============================
+    // REPLAY GROUP
+    // =============================
     replayBox = new QGroupBox("Replay");
-    allTracks = new QCheckBox("All Tracks");
-    selectedTracks = new QCheckBox("Selected Tracks");
-    trackLineEdit   = new QLineEdit;
 
+    replayRadio = new QRadioButton("Replay Mode");
+    allTracks = new QRadioButton("All Tracks");
+    selectAllTracks = new QRadioButton("Select All Tracks");
+
+    trackLineEdit = new QLineEdit;
+    trackLineEdit->setPlaceholderText("Track ID (1-1000)");
+    //trackLineEdit->setMinimumWidth(150);
+
+
+    // ---- Filter Checkboxes ----
     chkRange = new QCheckBox("Range");
     chkAzm   = new QCheckBox("Azm");
     chkEle   = new QCheckBox("Ele");
     chkTime  = new QCheckBox("Time");
 
+    // ---- LineEdits ----
     rangeMinEdit = new QLineEdit;
     rangeMaxEdit = new QLineEdit;
-    azmMinEdit   = new QLineEdit;
-    azmMaxEdit   = new QLineEdit;
-    eleMinEdit   = new QLineEdit;
-    eleMaxEdit   = new QLineEdit;
-    timeMinEdit  = new QLineEdit;
-    timeMaxEdit  = new QLineEdit;
 
-    replayLayout = new QGridLayout;
+    azmMinEdit = new QLineEdit;
+    azmMaxEdit = new QLineEdit;
 
-    int row=0;
-    replayLayout->addWidget(allTracks,row++,0);
-    replayLayout->addWidget(selectedTracks,row,0);
-    replayLayout->addWidget(trackLineEdit,row++,1,1,3);
+    eleMinEdit = new QLineEdit;
+    eleMaxEdit = new QLineEdit;
 
-    auto addRow=[&](QCheckBox* chk,QLineEdit* minE,QLineEdit* maxE,int r)
-    {
-        replayLayout->addWidget(chk,r,0);
-        replayLayout->addWidget(new QLabel("Min"),r,1);
-        replayLayout->addWidget(minE,r,2);
-        replayLayout->addWidget(new QLabel("Max"),r,3);
-        replayLayout->addWidget(maxE,r,4);
-    };
+    timeMinEdit = new QLineEdit;
+    timeMaxEdit = new QLineEdit;
 
-    addRow(chkRange,rangeMinEdit,rangeMaxEdit,row++);
-    addRow(chkAzm,azmMinEdit,azmMaxEdit,row++);
-    addRow(chkEle,eleMinEdit,eleMaxEdit,row++);
-    addRow(chkTime,timeMinEdit,timeMaxEdit,row++);
+    // ---- Labels ----
+    QLabel *rangeMinLbl = new QLabel("Min");
+    QLabel *rangeMaxLbl = new QLabel("Max");
 
-    replayLayout->setColumnStretch(2,2);
-    replayLayout->setColumnStretch(4,2);
+    QLabel *azmMinLbl = new QLabel("Min");
+    QLabel *azmMaxLbl = new QLabel("Max");
+
+    QLabel *eleMinLbl = new QLabel("Min");
+    QLabel *eleMaxLbl = new QLabel("Max");
+
+    QLabel *timeMinLbl = new QLabel("Min");
+    QLabel *timeMaxLbl = new QLabel("Max");
+
+    QButtonGroup *trackGroup = new QButtonGroup(this);
+    trackGroup->addButton(allTracks);
+    trackGroup->addButton(selectAllTracks);
+    trackGroup->setExclusive(true);
+
+    // =============================
+    // REPLAY LAYOUT
+    // =============================
+    QGridLayout *replayLayout = new QGridLayout;
+
+    int row = 0;
+
+    replayLayout->addWidget(replayRadio, row++, 0, 1, 5, Qt::AlignHCenter);
+    replayLayout->addWidget(allTracks, row++, 0);
+    replayLayout->addWidget(selectAllTracks, row, 0);
+    replayLayout->addWidget(new QLabel("Track ID:"), row, 1);
+    replayLayout->addWidget(trackLineEdit, row++, 1, 1, 4);
+
+
+    // Range
+    replayLayout->addWidget(chkRange, row, 0);
+    replayLayout->addWidget(rangeMinLbl, row, 1);
+    replayLayout->addWidget(rangeMinEdit, row, 2);
+    replayLayout->addWidget(rangeMaxLbl, row, 3);
+    replayLayout->addWidget(rangeMaxEdit, row++, 4);
+
+    // Azm
+    replayLayout->addWidget(chkAzm, row, 0);
+    replayLayout->addWidget(azmMinLbl, row, 1);
+    replayLayout->addWidget(azmMinEdit, row, 2);
+    replayLayout->addWidget(azmMaxLbl, row, 3);
+    replayLayout->addWidget(azmMaxEdit, row++, 4);
+
+    // Ele
+    replayLayout->addWidget(chkEle, row, 0);
+    replayLayout->addWidget(eleMinLbl, row, 1);
+    replayLayout->addWidget(eleMinEdit, row, 2);
+    replayLayout->addWidget(eleMaxLbl, row, 3);
+    replayLayout->addWidget(eleMaxEdit, row++, 4);
+
+    // Time
+    replayLayout->addWidget(chkTime, row, 0);
+    replayLayout->addWidget(timeMinLbl, row, 1);
+    replayLayout->addWidget(timeMinEdit, row, 2);
+    replayLayout->addWidget(timeMaxLbl, row, 3);
+    replayLayout->addWidget(timeMaxEdit, row++, 4);
+
+    replayLayout->setColumnStretch(0,1);
+    replayLayout->setColumnStretch(1,1);
+    replayLayout->setColumnStretch(2,1);
+    replayLayout->setColumnStretch(3,1);
+    replayLayout->setColumnStretch(4,1);
+
+    replayLayout->setVerticalSpacing(8);
+    replayLayout->setRowStretch(row, 1);
 
     replayBox->setLayout(replayLayout);
 
 
-    // ---------- MODE GROUP ----------
+    // =============================
+    // MODE GROUP
+    // =============================
     modeGroup = new QButtonGroup(this);
     modeGroup->addButton(analysisRadio);
     modeGroup->addButton(replayRadio);
+    modeGroup->setExclusive(true);
 
 
-    // ---------- BOTTOM ----------
+    // =============================
+    // MIDDLE SECTION
+    // =============================
+    QHBoxLayout *middleLayout = new QHBoxLayout;
+    middleLayout->addWidget(analysisBox, 1);
+    middleLayout->addWidget(replayBox, 1);
+
+
+    // =============================
+    // BOTTOM CONTROLS
+    // =============================
     processButton = new QPushButton("Start");
-    pauseButton   = new QPushButton("Pause");
-    cancelButton  = new QPushButton("Cancel");
+    pauseButton = new QPushButton("Pause");
+    cancelButton = new QPushButton("Cancel");
 
     progressSlider = new QSlider(Qt::Horizontal);
-    progressSlider->setRange(0,100);
-    progressSlider->setTracking(false);
+    progressSlider->setRange(0, 100);
 
     progressLabel = new QLabel("0 %");
-
-    speedCombo = new QComboBox;
-    speedCombo->addItems({"0.5x","1x","2x","4x"});
-    speedCombo->setCurrentIndex(1);
+    progressLabel->setMinimumWidth(50);
 
     QHBoxLayout *bottomLayout = new QHBoxLayout;
     bottomLayout->addWidget(processButton);
-    bottomLayout->addWidget(progressSlider,1);
+    bottomLayout->addWidget(progressSlider, 1);
     bottomLayout->addWidget(progressLabel);
-    bottomLayout->addWidget(new QLabel("Speed"));
-    bottomLayout->addWidget(speedCombo);
     bottomLayout->addWidget(pauseButton);
     bottomLayout->addWidget(cancelButton);
 
 
-    // ---------- MIDDLE ----------
-    QHBoxLayout *middleLayout = new QHBoxLayout;
-    middleLayout->addWidget(analysisBox,1);
-    middleLayout->addWidget(replayBox,1);
-
-
-    // ---------- MAIN ----------
+    // =============================
+    // MAIN LAYOUT
+    // =============================
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(topLayout);
-    mainLayout->addLayout(modeLayout);
-    mainLayout->addLayout(middleLayout,1);
+    mainLayout->addLayout(middleLayout, 1);
     mainLayout->addLayout(bottomLayout);
 
-
-    // ---------- VALIDATORS ----------
-    trackLineEdit->setValidator(new QIntValidator(1,1000,this));
-
-    QDoubleValidator *dv=new QDoubleValidator(this);
-
-    rangeMinEdit->setValidator(dv);
-    rangeMaxEdit->setValidator(dv);
-    azmMinEdit->setValidator(dv);
-    azmMaxEdit->setValidator(dv);
-    eleMinEdit->setValidator(dv);
-    eleMaxEdit->setValidator(dv);
-    timeMinEdit->setValidator(dv);
-    timeMaxEdit->setValidator(dv);
+    //StyleSheet
+    setStyleSheet(R"(
+QWidget {
+    background-color: #F4F6F7;
+    font-family: Segoe UI;
+    font-size: 13px;
+}
+QPushButton {
+    background-color: #2E86C1;
+    color: white;
+    border-radius: 5px;
+    padding: 6px 12px;
+}
+QPushButton:hover {
+    background-color: #5DADE2;
+}
+QPushButton:pressed {
+    background-color: #1B4F72;
+}
+QLineEdit {
+    border: 1px solid #BDC3C7;
+    border-radius: 4px;
+    padding: 4px;
+    background: white;
+}
+QGroupBox {
+    border: 1px solid #D0D7DE;
+    border-radius: 8px;
+    margin-top: 12px;
+    background: white;
 }
 
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 3px 8px;
+    background: #2E86C1;
+    color: white;
+    border-radius: 5px;
+}
+QSlider::groove:horizontal {
+    height: 8px;
+    background: #D5D8DC;
+    border-radius: 4px;
+}
+QSlider::handle:horizontal {
+    background: #2E86C1;
+    border: 2px solid #1B4F72;
+    width: 18px; height: 18px;
+    margin: -6px 0;
+    border-radius: 9px;
+}
+QSlider::sub-page:horizontal {
+    background: #5DADE2;
+border-radius: 4px;
+}
+QCheckBox {
+    spacing: 6px;
+}
 
-// =====================================================
-// CONNECTIONS
-// =====================================================
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QCheckBox::indicator:unchecked {
+    border: 1px solid #7F8C8D;
+    background: white;
+}
+
+QCheckBox::indicator:checked {
+    border: 1px solid #2E86C1;
+    background: #2E86C1;
+}
+
+QCheckBox::indicator:checked::after {
+    content: "";
+}
+
+QCheckBox {
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+QCheckBox:hover {
+    background-color: #EBF5FB;
+}
+QLabel {
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+QLabel:hover {
+    background-color: #F2F3F4;
+})");
+
+}
 
 void BinaryFileReader::setupConnections()
 {
@@ -193,83 +340,56 @@ void BinaryFileReader::setupConnections()
     connect(pauseButton,&QPushButton::clicked,this,&BinaryFileReader::togglePause);
     connect(cancelButton,&QPushButton::clicked,this,&BinaryFileReader::cancelProcessing);
 
-    connectMinMaxValidation(rangeMinEdit,rangeMaxEdit);
-    connectMinMaxValidation(azmMinEdit,azmMaxEdit);
-    connectMinMaxValidation(eleMinEdit,eleMaxEdit);
-    connectMinMaxValidation(timeMinEdit,timeMaxEdit);
-
-    auto enablePair=[&](QCheckBox* chk,QLineEdit* minE,QLineEdit* maxE)
-    {
-        minE->setEnabled(false);
-        maxE->setEnabled(false);
-
-        connect(chk,&QCheckBox::toggled,this,[=](bool on)
-                {
-                    minE->setEnabled(on);
-                    maxE->setEnabled(on);
-                });
-    };
-
-    enablePair(chkRange,rangeMinEdit,rangeMaxEdit);
-    enablePair(chkAzm,azmMinEdit,azmMaxEdit);
-    enablePair(chkEle,eleMinEdit,eleMaxEdit);
-    enablePair(chkTime,timeMinEdit,timeMaxEdit);
-}
-
-
-// =====================================================
-// PROGRESS ANIMATION
-// =====================================================
-
-void BinaryFileReader::updateProgress(int value)
-{
-    QPropertyAnimation *anim =
-        new QPropertyAnimation(progressSlider,"value");
-
-    anim->setDuration(150);
-    anim->setStartValue(progressSlider->value());
-    anim->setEndValue(value);
-    anim->start(QAbstractAnimation::DeleteWhenStopped);
-
-    progressLabel->setText(QString("%1 %").arg(value));
-}
-
-
-// =====================================================
-// VALIDATION
-// =====================================================
-
-void BinaryFileReader::connectMinMaxValidation(QLineEdit *minE,
-                                               QLineEdit *maxE)
-{
-    connect(minE,&QLineEdit::textChanged,this,[=](){
-        validateMinMax(minE,maxE);
+    connect(fileNameEdit,&QLineEdit::textChanged,this,[this](QString t){
+        processButton->setEnabled(!t.isEmpty());
     });
 
-    connect(maxE,&QLineEdit::textChanged,this,[=](){
-        validateMinMax(minE,maxE);
+    connect(skipLineEdit,&QLineEdit::textChanged,this,[this](QString t){
+        bool ok; int p=t.toInt(&ok);
+        skipButton->setEnabled(ok && p>=0 && p<100);
     });
-}
 
-void BinaryFileReader::validateMinMax(QLineEdit *minEdit,
-                                      QLineEdit *maxEdit)
-{
-    bool ok1,ok2;
+    connect(analysisRadio, &QRadioButton::toggled,
+            this, [=](bool checked)
+            {
+                if (checked)
+                    onAnalysisMode();
+            });
 
-    double minVal=minEdit->text().toDouble(&ok1);
-    double maxVal=maxEdit->text().toDouble(&ok2);
+    connect(replayRadio, &QRadioButton::toggled,
+            this, [=](bool checked)
+            {
+                if (checked)
+                    onReplayMode();
+            });
 
-    if(ok1 && ok2 && minVal<=maxVal)
-    {
-        minEdit->setStyleSheet("");
-        maxEdit->setStyleSheet("");
-    }
-    else
-    {
-        QString style="border:2px solid red;";
-        minEdit->setStyleSheet(style);
-        maxEdit->setStyleSheet(style);
-    }
+    connect(allTracks, &QRadioButton::toggled,
+            this, [=]()
+            {
+                trackLineEdit->setEnabled(selectAllTracks->isChecked());
+            });
+
+    connect(selectAllTracks, &QRadioButton::toggled,
+            this, [=]()
+            {
+                trackLineEdit->setEnabled(selectAllTracks->isChecked());
+            });
+    connect(chkRange, &QCheckBox::toggled, this, [=](bool checked){
+        rangeMinEdit->setEnabled(checked);
+        rangeMaxEdit->setEnabled(checked);
+    });
+    connect(chkAzm, &QCheckBox::toggled, this, [=](bool checked){
+        azmMinEdit->setEnabled(checked);
+        azmMaxEdit->setEnabled(checked);
+    });
+    connect(chkEle, &QCheckBox::toggled, this, [=](bool checked){
+        eleMinEdit->setEnabled(checked);
+        eleMaxEdit->setEnabled(checked);
+    });
+    connect(chkTime, &QCheckBox::toggled, this, [=](bool checked){
+        timeMinEdit->setEnabled(checked);
+        timeMaxEdit->setEnabled(checked);
+    });
 }
 
 void BinaryFileReader::openFile()
@@ -686,3 +806,88 @@ bool BinaryFileReader::validateReplayInputs()
     return true;   // ✅ all good
 }
 
+void BinaryFileReader::onReplayMode()
+{
+    // ---- Analysis controls disabled ----
+    generateAllFiles->setEnabled(false);
+    showCheckBox->setEnabled(false);
+    generateAllFiles->setChecked(false);
+    showCheckBox->setChecked(false);
+
+    // ---- Replay controls enabled ----
+    allTracks->setEnabled(true);
+    selectAllTracks->setEnabled(true);
+    trackLineEdit->setEnabled(selectAllTracks->isChecked());
+    //trackLineEdit->setEnabled(true);
+
+    chkRange->setEnabled(true);
+    chkAzm->setEnabled(true);
+    chkEle->setEnabled(true);
+    chkTime->setEnabled(true);
+
+    // ⭐ Min/Max should remain disabled until checkbox ticked
+    rangeMinEdit->setEnabled(false);
+    rangeMaxEdit->setEnabled(false);
+
+    azmMinEdit->setEnabled(false);
+    azmMaxEdit->setEnabled(false);
+
+    eleMinEdit->setEnabled(false);
+    eleMaxEdit->setEnabled(false);
+
+    timeMinEdit->setEnabled(false);
+    timeMaxEdit->setEnabled(false);
+}
+
+void BinaryFileReader::onAnalysisMode()
+{
+    // ---- Analysis controls enabled ----
+    generateAllFiles->setEnabled(true);
+    showCheckBox->setEnabled(true);
+
+    // ---- Replay controls disabled ----
+    allTracks->setEnabled(false);
+    selectAllTracks->setEnabled(false);
+    trackLineEdit->setEnabled(false);
+
+    chkRange->setEnabled(false);
+    chkAzm->setEnabled(false);
+    chkEle->setEnabled(false);
+    chkTime->setEnabled(false);
+
+    // ---- Reset replay selections ----
+    allTracks->setChecked(false);
+    selectAllTracks->setChecked(false);
+
+    chkRange->setChecked(false);
+    chkAzm->setChecked(false);
+    chkEle->setChecked(false);
+    chkTime->setChecked(false);
+
+    trackLineEdit->clear();
+
+    rangeMinEdit->clear();
+    rangeMaxEdit->clear();
+
+    azmMinEdit->clear();
+    azmMaxEdit->clear();
+
+    eleMinEdit->clear();
+    eleMaxEdit->clear();
+
+    timeMinEdit->clear();
+    timeMaxEdit->clear();
+
+    // ---- Keep disabled ----
+    rangeMinEdit->setEnabled(false);
+    rangeMaxEdit->setEnabled(false);
+
+    azmMinEdit->setEnabled(false);
+    azmMaxEdit->setEnabled(false);
+
+    eleMinEdit->setEnabled(false);
+    eleMaxEdit->setEnabled(false);
+
+    timeMinEdit->setEnabled(false);
+    timeMaxEdit->setEnabled(false);
+}
