@@ -71,15 +71,8 @@ void BinaryFileReader::setupUI()
     analysisLayout->addWidget(generateAllFiles, row1++, 0);
     analysisLayout->addWidget(showCheckBox, row1++, 0);
 
-    analysisLayout->setColumnStretch(0,1);
-    analysisLayout->setColumnStretch(1,1);
-    analysisLayout->setColumnStretch(2,1);
-    analysisLayout->setColumnStretch(3,1);
-    analysisLayout->setColumnStretch(4,1);
-
-    analysisLayout->setVerticalSpacing(10);
-
-    analysisLayout->setRowStretch(row1, 1);
+    //analysisLayout->setVerticalSpacing(10);
+    //analysisLayout->setRowStretch(row1, 1);
     analysisBox->setLayout(analysisLayout);
 
 
@@ -96,44 +89,6 @@ void BinaryFileReader::setupUI()
     trackLineEdit->setPlaceholderText("Track ID (1-1000)");
     //trackLineEdit->setMinimumWidth(150);
 
-
-    // ---- Filter Checkboxes ----
-    chkRange = new QCheckBox("Range");
-    chkAzm   = new QCheckBox("Azm");
-    chkEle   = new QCheckBox("Ele");
-    chkTime  = new QCheckBox("Time");
-
-    // ---- LineEdits ----
-    rangeMinEdit = new QLineEdit;
-    rangeMaxEdit = new QLineEdit;
-
-    azmMinEdit = new QLineEdit;
-    azmMaxEdit = new QLineEdit;
-
-    eleMinEdit = new QLineEdit;
-    eleMaxEdit = new QLineEdit;
-
-    timeMinEdit = new QLineEdit;
-    timeMaxEdit = new QLineEdit;
-
-    // ---- Labels ----
-    QLabel *rangeMinLbl = new QLabel("Min");
-    QLabel *rangeMaxLbl = new QLabel("Max");
-
-    QLabel *azmMinLbl = new QLabel("Min");
-    QLabel *azmMaxLbl = new QLabel("Max");
-
-    QLabel *eleMinLbl = new QLabel("Min");
-    QLabel *eleMaxLbl = new QLabel("Max");
-
-    QLabel *timeMinLbl = new QLabel("Min");
-    QLabel *timeMaxLbl = new QLabel("Max");
-
-    QButtonGroup *trackGroup = new QButtonGroup(this);
-    trackGroup->addButton(allTracks);
-    trackGroup->addButton(selectAllTracks);
-    trackGroup->setExclusive(true);
-
     // =============================
     // REPLAY LAYOUT
     // =============================
@@ -148,44 +103,87 @@ void BinaryFileReader::setupUI()
     replayLayout->addWidget(trackLineEdit, row++, 1, 1, 4);
 
 
-    // Range
-    replayLayout->addWidget(chkRange, row, 0);
-    replayLayout->addWidget(rangeMinLbl, row, 1);
-    replayLayout->addWidget(rangeMinEdit, row, 2);
-    replayLayout->addWidget(rangeMaxLbl, row, 3);
-    replayLayout->addWidget(rangeMaxEdit, row++, 4);
-
-    // Azm
-    replayLayout->addWidget(chkAzm, row, 0);
-    replayLayout->addWidget(azmMinLbl, row, 1);
-    replayLayout->addWidget(azmMinEdit, row, 2);
-    replayLayout->addWidget(azmMaxLbl, row, 3);
-    replayLayout->addWidget(azmMaxEdit, row++, 4);
-
-    // Ele
-    replayLayout->addWidget(chkEle, row, 0);
-    replayLayout->addWidget(eleMinLbl, row, 1);
-    replayLayout->addWidget(eleMinEdit, row, 2);
-    replayLayout->addWidget(eleMaxLbl, row, 3);
-    replayLayout->addWidget(eleMaxEdit, row++, 4);
-
-    // Time
-    replayLayout->addWidget(chkTime, row, 0);
-    replayLayout->addWidget(timeMinLbl, row, 1);
-    replayLayout->addWidget(timeMinEdit, row, 2);
-    replayLayout->addWidget(timeMaxLbl, row, 3);
-    replayLayout->addWidget(timeMaxEdit, row++, 4);
-
-    replayLayout->setColumnStretch(0,1);
-    replayLayout->setColumnStretch(1,1);
-    replayLayout->setColumnStretch(2,1);
-    replayLayout->setColumnStretch(3,1);
-    replayLayout->setColumnStretch(4,1);
-
-    replayLayout->setVerticalSpacing(8);
-    replayLayout->setRowStretch(row, 1);
+    //replayLayout->setVerticalSpacing(8);
+    //replayLayout->setRowStretch(row, 1);
 
     replayBox->setLayout(replayLayout);
+
+    QButtonGroup *trackGroup = new QButtonGroup(this);
+    trackGroup->addButton(allTracks);
+    trackGroup->addButton(selectAllTracks);
+    trackGroup->setExclusive(true);
+
+    // =============================
+    // FILTER GROUP
+    // =============================
+    filterBox = new QGroupBox("Filters");
+
+    chkRange = new QCheckBox("Range");
+    chkAzm   = new QCheckBox("Azm");
+    chkEle   = new QCheckBox("Ele");
+    chkTime  = new QCheckBox("Time");
+
+    rangeMinEdit = new QLineEdit;
+    rangeMaxEdit = new QLineEdit;
+
+    azmMinEdit = new QLineEdit;
+    azmMaxEdit = new QLineEdit;
+
+    eleMinEdit = new QLineEdit;
+    eleMaxEdit = new QLineEdit;
+
+    timeMinEdit = new QLineEdit;
+    timeMaxEdit = new QLineEdit;
+
+    QLabel *rangeMinLbl = new QLabel("Min");
+    QLabel *rangeMaxLbl = new QLabel("Max");
+
+    QLabel *azmMinLbl = new QLabel("Min");
+    QLabel *azmMaxLbl = new QLabel("Max");
+
+    QLabel *eleMinLbl = new QLabel("Min");
+    QLabel *eleMaxLbl = new QLabel("Max");
+
+    QLabel *timeMinLbl = new QLabel("Min");
+    QLabel *timeMaxLbl = new QLabel("Max");
+
+
+    QGridLayout *filterLayout = new QGridLayout;
+
+    // LEFT SIDE
+    filterLayout->addWidget(chkRange, 0, 0);
+    filterLayout->addWidget(rangeMinLbl, 0, 1);
+    filterLayout->addWidget(rangeMinEdit, 0, 2);
+    filterLayout->addWidget(rangeMaxLbl, 0, 3);
+    filterLayout->addWidget(rangeMaxEdit, 0, 4);
+
+    filterLayout->addWidget(chkEle, 1, 0);
+    filterLayout->addWidget(eleMinLbl, 1, 1);
+    filterLayout->addWidget(eleMinEdit, 1, 2);
+    filterLayout->addWidget(eleMaxLbl, 1, 3);
+    filterLayout->addWidget(eleMaxEdit, 1, 4);
+
+    // RIGHT SIDE
+    filterLayout->addWidget(chkAzm, 0, 6);
+    filterLayout->addWidget(azmMinLbl, 0, 7);
+    filterLayout->addWidget(azmMinEdit, 0, 8);
+    filterLayout->addWidget(azmMaxLbl, 0, 9);
+    filterLayout->addWidget(azmMaxEdit, 0, 10);
+
+    filterLayout->addWidget(chkTime, 1, 6);
+    filterLayout->addWidget(timeMinLbl, 1, 7);
+    filterLayout->addWidget(timeMinEdit, 1, 8);
+    filterLayout->addWidget(timeMaxLbl, 1, 9);
+    filterLayout->addWidget(timeMaxEdit, 1, 10);
+
+
+    // ⭐ important stretch between left and right
+    filterLayout->setColumnStretch(5, 1);
+
+    filterLayout->setHorizontalSpacing(12);
+    filterLayout->setVerticalSpacing(8);
+
+    filterBox->setLayout(filterLayout);
 
 
     // =============================
@@ -201,8 +199,11 @@ void BinaryFileReader::setupUI()
     // MIDDLE SECTION
     // =============================
     QHBoxLayout *middleLayout = new QHBoxLayout;
-    middleLayout->addWidget(analysisBox, 1);
-    middleLayout->addWidget(replayBox, 1);
+    middleLayout->addWidget(analysisBox,1);
+    middleLayout->addWidget(replayBox,1);
+
+    QHBoxLayout *filterChkLayout = new QHBoxLayout;
+    filterChkLayout->addWidget(filterBox);
 
 
     // =============================
@@ -232,6 +233,7 @@ void BinaryFileReader::setupUI()
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(topLayout);
     mainLayout->addLayout(middleLayout, 1);
+    mainLayout->addLayout(filterChkLayout);
     mainLayout->addLayout(bottomLayout);
 
     //StyleSheet
@@ -850,10 +852,10 @@ void BinaryFileReader::onAnalysisMode()
     selectAllTracks->setEnabled(false);
     trackLineEdit->setEnabled(false);
 
-    chkRange->setEnabled(false);
-    chkAzm->setEnabled(false);
-    chkEle->setEnabled(false);
-    chkTime->setEnabled(false);
+    chkRange->setEnabled(true);
+    chkAzm->setEnabled(true);
+    chkEle->setEnabled(true);
+    chkTime->setEnabled(true);
 
     // ---- Reset replay selections ----
     allTracks->setChecked(false);
@@ -890,4 +892,53 @@ void BinaryFileReader::onAnalysisMode()
 
     timeMinEdit->setEnabled(false);
     timeMaxEdit->setEnabled(false);
+}
+bool BinaryFileReader::passFilters(const PSP_DATA &data)
+{
+    double range = data.srch_rpts[0].m_frange;   // example field
+    double azm   = data.dwell_data.alpha;        // adjust field
+    double ele   = data.dwell_data.beta;
+    double time  = strctLogHdr.m_ulTime;
+
+    // Range
+    if (chkRange->isChecked())
+    {
+        double minVal = rangeMinEdit->text().toDouble();
+        double maxVal = rangeMaxEdit->text().toDouble();
+
+        if (range < minVal || range > maxVal)
+            return false;
+    }
+
+    // Azimuth
+    if (chkAzm->isChecked())
+    {
+        double minVal = azmMinEdit->text().toDouble();
+        double maxVal = azmMaxEdit->text().toDouble();
+
+        if (azm < minVal || azm > maxVal)
+            return false;
+    }
+
+    // Elevation
+    if (chkEle->isChecked())
+    {
+        double minVal = eleMinEdit->text().toDouble();
+        double maxVal = eleMaxEdit->text().toDouble();
+
+        if (ele < minVal || ele > maxVal)
+            return false;
+    }
+
+    // Time
+    if (chkTime->isChecked())
+    {
+        double minVal = timeMinEdit->text().toDouble();
+        double maxVal = timeMaxEdit->text().toDouble();
+
+        if (time < minVal || time > maxVal)
+            return false;
+    }
+
+    return true;   // passed all filters
 }

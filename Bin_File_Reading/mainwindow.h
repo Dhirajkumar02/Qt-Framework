@@ -68,6 +68,7 @@ private:
     bool validateReplayInputs();   // (optional future use)
     void onReplayMode();
     void onAnalysisMode();
+    bool passFilters(const PSP_DATA &data);
 
 
 private:
@@ -102,6 +103,7 @@ private:
     QLineEdit *trackLineEdit;
 
     // Filter checkboxes
+    QGroupBox    *filterBox;
     QCheckBox *chkRange;
     QCheckBox *chkAzm;
     QCheckBox *chkEle;
