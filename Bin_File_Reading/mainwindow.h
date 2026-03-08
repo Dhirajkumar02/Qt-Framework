@@ -40,11 +40,37 @@ private slots:
     void cancelProcessing();
 
 private:
+
+    // =============================
+    // RUN MODE
+    // =============================
+    enum class RunMode
+    {
+        Analysis,
+        Replay
+    };
+
+    RunMode currentMode {RunMode::Analysis};
+
+
+    // =============================
+    // FILTER VALUE STRUCT (UNIVERSAL)
+    // =============================
+    struct FilterValues
+    {
+        double range = 0;
+        double azm   = 0;
+        double ele   = 0;
+        double time  = 0;
+    };
+
+
     // =============================
     // UI SETUP
     // =============================
     void setupUI();
     void setupConnections();
+
 
     // =============================
     // FILE HELPERS
@@ -55,23 +81,41 @@ private:
 
     bool openAllOutputFiles(const QFileInfo &fileInfo);
 
+
     // =============================
     // DATA WRITERS
     // =============================
     void writePspData(const PSP_DATA &data, QFile &pspOutputFile);
 
     static QString toHex(quint32 value, int width = 4);
+    bool passFilters(const PSP_DATA &data);
+    bool validateReplayInputs();
+
 
     // =============================
-    // REPLAY VALIDATION
+    // MODE CONTROL
     // =============================
-    bool validateReplayInputs();   // (optional future use)
     void onReplayMode();
     void onAnalysisMode();
-    bool passFilters(const PSP_DATA &data);
+
+
+    // =============================
+    // FILTER SYSTEM
+    // =============================
+    bool isFilterApplied() const;
+    bool passFilters(const FilterValues &v) const;
+    QFile* getAnalysisFile(bool filterPassed);
+    double convertRangeToMeters(double value) const;
+
+
+    // =============================
+    // DISPLAY (Replay Mode)
+    // =============================
+    void sendToDisplay(const PSP_DATA &data);   // you implement later
 
 
 private:
+
     // =============================
     // UI ELEMENTS
     // =============================
@@ -100,10 +144,12 @@ private:
     QRadioButton *replayRadio;
     QRadioButton *allTracks;
     QRadioButton *selectAllTracks;
-    QLineEdit *trackLineEdit;
+    QLineEdit    *trackLineEdit;
+
+    // Filter box
+    QGroupBox *filterBox;
 
     // Filter checkboxes
-    QGroupBox    *filterBox;
     QCheckBox *chkRange;
     QCheckBox *chkAzm;
     QCheckBox *chkEle;
@@ -141,9 +187,11 @@ private:
 
     QFile   pspOutputFile;
     QFile   stsOutputFile;
+    QFile   subStsOutputFile;   // ⭐ FILTERED OUTPUT FILE
     QFile   spOutputFile;
     QFile   spCenOutputFile;
     QFile   logOutputFile;
+    QFile   txtOutputFile;
 
 
     // =============================

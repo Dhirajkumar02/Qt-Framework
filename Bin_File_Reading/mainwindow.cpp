@@ -71,8 +71,8 @@ void BinaryFileReader::setupUI()
     analysisLayout->addWidget(generateAllFiles, row1++, 0);
     analysisLayout->addWidget(showCheckBox, row1++, 0);
 
-    //analysisLayout->setVerticalSpacing(10);
-    //analysisLayout->setRowStretch(row1, 1);
+    analysisLayout->setVerticalSpacing(10);
+    analysisLayout->setRowStretch(row1, 1);
     analysisBox->setLayout(analysisLayout);
 
 
@@ -103,8 +103,8 @@ void BinaryFileReader::setupUI()
     replayLayout->addWidget(trackLineEdit, row++, 1, 1, 4);
 
 
-    //replayLayout->setVerticalSpacing(8);
-    //replayLayout->setRowStretch(row, 1);
+    replayLayout->setVerticalSpacing(8);
+    replayLayout->setRowStretch(row, 1);
 
     replayBox->setLayout(replayLayout);
 
@@ -430,26 +430,16 @@ void BinaryFileReader::skipPressed()
     skipPercent = static_cast<quint32>(p);  // ✅ safe conversion
     progressSlider->setValue(p);
 }
-
 void BinaryFileReader::sliderMoved()
 {
     // BEFORE analysis: only set skip%
+    skipPercent = progressSlider->value();
     if(!isProcessing)
     {
-        skipPercent = progressSlider->value();
-        qDebug() << "Slider changed to" << skipPercent << "% before analysis";
         return;
     }
-
-    // DURING analysis: stop + re-seek
-    skipPercent = progressSlider->value();
     stopRequested = true;
-    pauseRequested = false;
-    cancelRequested = false;
 
-    qDebug() << "Slider seek during processing → restart at" << skipPercent << "%";
-
-    analysisFile();  // Restart read from new position
 }
 
 void BinaryFileReader::togglePause()
@@ -466,6 +456,7 @@ void BinaryFileReader::cancelProcessing()
     cancelRequested = true;
     stopRequested = true;
 }
+
 void BinaryFileReader::analysisFile()
 {
     if (isProcessing) {
@@ -500,15 +491,18 @@ void BinaryFileReader::analysisFile()
         return;
     }
 
+    QDataStream in(&binFile);
+    in.setByteOrder(QDataStream::LittleEndian);
+    qint64 totalSize = binFile.size();
+    quint64 skipBytes = (skipPercent * totalSize)/100;
 
-    const quint64 totalSize = binFile.size();
+    if(!binFile.seek(skipBytes)){
+        QMessageBox::critical(this, "Error", "Failed to skipbytes in file");
+        binFile.close();
+        return;
+    }
 
-    // ---- Buffered byte-wise scan ----
-    const int BUF_SIZE = 64 * 1024;   // 64 KB
-    QByteArray buffer(BUF_SIZE, 0);
-
-    quint32 syncReg = 0;
-    quint64 processed = 0;
+    quint64 byteReadTotal = skipBytes;
 
     while (!binFile.atEnd())
     {
@@ -519,61 +513,49 @@ void BinaryFileReader::analysisFile()
             qApp->processEvents();
             QThread::msleep(20);
         }
+        quint32 msgID32;
+        quint16 msgID16;
 
-        qint64 n = binFile.read(buffer.data(), buffer.size());
-        if (n <= 0)
-            break;
+        in>>msgID32;
+        if(msgID32 == 0xEEEEEEEE){
+            in.device()->seek(in.device()->pos() - sizeof(msgID32));
 
-        for (qint64 i = 0; i < n; ++i)
-        {
-            quint8 byte = static_cast<quint8>(buffer[i]);
+            in.readRawData(reinterpret_cast<char*>(&strctLogHdr), sizeof(DLOG_HEADER));
 
-            // ---- rolling window (little-endian safe) ----
-            syncReg = (syncReg >> 8) | (quint32(byte) << 24);
+            QTextStream out(&txtOutputFile);
+            out<<strctLogHdr.m_ulTime;
+            in>>msgID16;
+            out<<toHex(msgID16)<<"\n";
 
-            if (syncReg != 0xEEEEEEEE)
-                continue;
-
-            // ===== SYNC FOUND =====
-            syncReg = 0;
-
-            // ---- Read rest of DLOG_HEADER (except sync) ----
-            if (binFile.read(reinterpret_cast<char*>(&strctLogHdr.m_ulTime),
-                             sizeof(DLOG_HEADER) - sizeof(quint32))
-                != (sizeof(DLOG_HEADER) - sizeof(quint32)))
-                break;
-
-            // ---- Read 16-bit message ID ----
-            quint16 msgID16;
-            if (binFile.read(reinterpret_cast<char*>(&msgID16), sizeof(msgID16))
-                != sizeof(msgID16))
-                break;
-
-            msgID16 = qFromLittleEndian(msgID16);
-
-            // ---- Handle sub-messages ----
             switch (msgID16)
             {
             case 0xAAA1:   // PSP
             {
-                if (binFile.read(reinterpret_cast<char*>(&strctDwlData),
-                                 sizeof(DWELL_DATA)) != sizeof(DWELL_DATA))
-                    break;
+                in.device()->seek(in.device()->pos() - sizeof(WORD));
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.dwell_data),sizeof(DWELL_DATA));
 
-                binFile.read(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
-                             sizeof(strctPspData.no_of_rpt));
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
+                               sizeof(strctPspData.no_of_rpt));
 
-                binFile.read(reinterpret_cast<char*>(&strctPspData.RMS_IQ),
-                             sizeof(strctPspData.RMS_IQ));
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.RMS_IQ),
+                               sizeof(strctPspData.RMS_IQ));
 
                 for (int r = 0; r < strctPspData.no_of_rpt && r < 50; ++r)
                 {
-                    binFile.read(reinterpret_cast<char*>(&strctPspData.srch_rpts[r]),
-                                 sizeof(RPTS));
+                    in.readRawData(reinterpret_cast<char*>(&strctPspData.srch_rpts[r]),
+                                   sizeof(RPTS));
                 }
 
                 // ---- write outputs ----
-                writePspData(strctPspData, pspOutputFile);
+                if(currentMode == RunMode::Analysis){
+                    writePspData(strctPspData, pspOutputFile);
+                }
+                else{
+                    if(currentMode == RunMode::Replay){
+                        //Send to display
+                    }
+                }
+
 
             }
             break;
@@ -588,20 +570,16 @@ void BinaryFileReader::analysisFile()
                 break;
             }
         }
-
-        processed += n;
-
-        // ---- UI update (throttled) ----
-        static int tick = 0;
-        if (++tick % 300 == 0)
-        {
-            int progressPercent = int((processed * 100) / totalSize);
-
-            progressSlider->setValue(progressPercent);
-            progressLabel->setText(QString("%1 %").arg(progressPercent));
-
-            qApp->processEvents();
+        else{
+            if(!in.atEnd()){
+                in.device()->seek(in.device()->pos() - (sizeof(msgID32-1)));
+            }
         }
+
+        byteReadTotal = in.device()->pos();
+        int progressPercent = static_cast<int>((byteReadTotal * 100) / totalSize);
+        progressSlider->setValue(progressPercent);
+        QApplication::processEvents();
 
     }
 
@@ -702,7 +680,8 @@ bool BinaryFileReader::openAllOutputFiles(const QFileInfo &fileInfo)
             { &stsOutputFile,   ".sts"   },
             { &spOutputFile,    ".sp"    },
             { &spCenOutputFile, ".spcen" },
-            { &logOutputFile,   ".log"   }
+            { &logOutputFile,   ".log"   },
+            { &txtOutputFile, ".txt"}
         };
 
     for (const auto &out : files)
