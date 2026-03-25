@@ -244,6 +244,8 @@ QWidget {
     background-color: #F4F6F7;
     font-family: Segoe UI;
     font-size: 13px;
+    color:black;
+    font-weight: bold;
 }
 QPushButton {
     background-color: #2E86C1;
@@ -275,7 +277,7 @@ QGroupBox::title {
     left: 12px;
     padding: 3px 8px;
     background: #2E86C1;
-    color: white;
+
     border-radius: 5px;
 }
 QSlider::groove:horizontal {

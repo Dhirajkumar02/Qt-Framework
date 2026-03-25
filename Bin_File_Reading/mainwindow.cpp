@@ -529,7 +529,8 @@ void BinaryFileReader::analysisFile()
 
             switch (msgID16)
             {
-            case 0xAAA1:   // PSP
+            case 0xAAA1:
+            case 0xAAA2:                // PSP
             {
                 in.device()->seek(in.device()->pos() - sizeof(WORD));
                 in.readRawData(reinterpret_cast<char*>(&strctPspData.dwell_data),sizeof(DWELL_DATA));
@@ -544,15 +545,59 @@ void BinaryFileReader::analysisFile()
                 {
                     in.readRawData(reinterpret_cast<char*>(&strctPspData.srch_rpts[r]),
                                    sizeof(RPTS));
+                    if(allTracks->isChecked()){
+                        if(isFilterApplied()){
+                            filterPassed = checkWithinWindow(strctPspData.srch_rpts[r].m_frange, strctPspData.srch_rpts[r].m_fDelAlpha,
+                                                       strctPspData.srch_rpts[r].m_fDelBeta, strctPspData.dwell_data.dTime);
+                        }
+                        else{
+                            filterPassed = true;
+                        }
+                    }
+                    else{
+
+                    }
                 }
 
                 // ---- write outputs ----
                 if(currentMode == RunMode::Analysis){
                     writePspData(strctPspData, pspOutputFile);
+                    if(filterPassed){
+                        writePspData(strctPspData, subStsOutputFile);
+                    }
                 }
                 else{
                     if(currentMode == RunMode::Replay){
                         //Send to display
+                        memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
+                        strctDisplayTrackData.msgId = 0xFD00;
+                        strctDisplayTrackData.trkId =0;
+                        strctDisplayTrackData.time = strctPspData.dwell_data.dTime;
+                        oUtility.polarToCatesian(strctPspData.srch_rpts[r].m_frange, azmDwl, eleDwl, &dY, &dY, &dZ);
+                        strctDisplayTrackData.x = dX;
+                        strctDisplayTrackData.y = dY;
+                        strctDisplayTrackData.z = dZ;
+
+                        if(allTracks->isChecked()){
+                            sendThisTrack = true;
+                        }
+                        else if(selectAllTracks->isChecked()){
+                            bool flag = false;
+                            for(int i = 0; i<noOfTracks; i++){
+                                flag = true;
+                                break;
+                            }
+                            if(flag == true){
+                                QTextStream out(trackFile);
+                                if(msgID16 == 0xAAA1){
+                                    out<<"SP_Data "<<"Time "<<strctPspData.srch_rpts[r].m_frange
+                                        <<" Azm "<<azmDwl<<" ele "<<eleDwl<<"\n";
+                                }
+                            }
+                        }
+                        if(sendThisTrack && filterPassed){
+                            oDisplaySender.sendToDisplay(strctDisplayTrackData);
+                        }
                     }
                 }
 
