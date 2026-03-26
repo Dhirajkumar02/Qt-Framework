@@ -63,3 +63,63 @@ for(int i = 0; i < noOfTracks; i++)
 }
 
 noOfTracks = 0;
+
+
+QMap<int, QFile*> trackFiles;
+void BinaryFileReader::createTrackFiles()
+{
+    // cleanup old
+    for(auto file : trackFiles)
+    {
+        file->close();
+        delete file;
+    }
+    trackFiles.clear();
+
+    QString text = trackLineEdit->text();
+    QStringList ids = text.split(",", Qt::SkipEmptyParts);
+
+    QFileInfo fileInfo(filePath);
+    QString basePath = fileInfo.absolutePath();
+
+    int count = 0;
+
+    for(QString idStr : ids)
+    {
+        if(count >= 20) break;   // same limit like array
+
+        int id = idStr.trimmed().toInt();
+
+        QString filename = basePath + "/Tid_" + QString::number(id) + ".txt";
+
+        QFile *file = new QFile(filename);
+
+        if(file->open(QIODevice::WriteOnly | QIODevice::Text))
+        {
+            trackFiles[id] = file;
+            count++;
+        }
+    }
+}
+
+int trackId = strctFilterData.trackId;
+
+if(trackFiles.contains(trackId))
+{
+    QTextStream out(trackFiles[trackId]);
+
+    out << trackId << " "
+        << strctFilterData.x << " "
+        << strctFilterData.y << " "
+        << strctFilterData.z << " "
+        << strctFilterData.dTime
+        << "\n";
+
+    oDisplaySender.sendToDisplay(strctDisplayTrackData);
+}
+for(auto file : trackFiles)
+{
+    file->close();
+    delete file;
+}
+trackFiles.clear();
