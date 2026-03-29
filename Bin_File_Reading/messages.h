@@ -327,6 +327,25 @@ struct FILTER_DATA{
     WORD noted_13;
 };
 #pragma pack(pop)
+
+#pragma pack(push, 1)
+struct Track_Request
+{
+    WORD trkId;
+    WORD mode;
+    WORD initCount;
+    DWORD dTime;
+    WORD ljf_freq;
+    WORD cFar_mti;
+    WORD freq_pulses;
+    WORD pw_prf;
+    WORD stclaw;
+    float range;
+    float azm;
+    float ele;
+};
+#pragma pack(pop)
+
 #pragma pack(push, 1)
 struct RDP_Error
 {

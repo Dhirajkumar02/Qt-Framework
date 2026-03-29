@@ -529,11 +529,14 @@ void BinaryFileReader::analysisFile()
 
             switch (msgID16)
             {
+
             case 0xAAA1:
-            case 0xAAA2:                // PSP
+            case 0xAAA2:        // PSP
             {
                 in.device()->seek(in.device()->pos() - sizeof(WORD));
-                in.readRawData(reinterpret_cast<char*>(&strctPspData.dwell_data),sizeof(DWELL_DATA));
+
+                in.readRawData(reinterpret_cast<char*>(&strctPspData.dwell_data),
+                               sizeof(DWELL_DATA));
 
                 in.readRawData(reinterpret_cast<char*>(&strctPspData.no_of_rpt),
                                sizeof(strctPspData.no_of_rpt));
@@ -545,66 +548,243 @@ void BinaryFileReader::analysisFile()
                 {
                     in.readRawData(reinterpret_cast<char*>(&strctPspData.srch_rpts[r]),
                                    sizeof(RPTS));
-                    if(allTracks->isChecked()){
-                        if(isFilterApplied()){
-                            filterPassed = checkWithinWindow(strctPspData.srch_rpts[r].m_frange, strctPspData.srch_rpts[r].m_fDelAlpha,
-                                                       strctPspData.srch_rpts[r].m_fDelBeta, strctPspData.dwell_data.dTime);
+
+                    double pspRange = strctPspData.srch_rpts[r].m_frange;
+                    double pspAzm   = strctPspData.srch_rpts[r].m_fDelAlpha;
+                    double pspEle   = strctPspData.srch_rpts[r].m_fDelBeta;
+
+                    // optional window filter
+                    if (allTracks->isChecked())
+                    {
+                        if (isWithinWindow())
+                        {
+                            isPassed = checkWithinWindow(pspRange,
+                                                         pspAzm,
+                                                         pspEle,
+                                                         strctPspData.dwell_data.dTime);
                         }
-                        else{
-                            filterPassed = true;
+                        else
+                        {
+                            isPassed = true;
                         }
                     }
-                    else{
-
+                    else
+                    {
+                        isPassed = true;
                     }
-                }
 
-                // ---- write outputs ----
-                if(currentMode == RunMode::Analysis){
-                    writePspData(strctPspData, pspOutputFile);
-                    if(filterPassed){
-                        writePspData(strctPspData, subStsOutputFile);
-                    }
-                }
-                else{
-                    if(currentMode == RunMode::Replay){
-                        //Send to display
-                        memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
-                        strctDisplayTrackData.msgId = 0xFD00;
-                        strctDisplayTrackData.trkId =0;
-                        strctDisplayTrackData.time = strctPspData.dwell_data.dTime;
-                        oUtility.polarToCatesian(strctPspData.srch_rpts[r].m_frange, azmDwl, eleDwl, &dY, &dY, &dZ);
-                        strctDisplayTrackData.x = dX;
-                        strctDisplayTrackData.y = dY;
-                        strctDisplayTrackData.z = dZ;
+                    // Replay mode only
+                    if (currentMode == RunMode::Replay && selectAllTracks->isChecked())
+                    {
+                        // check all selected Track_Request IDs
+                        for (int i = 0; i < noOfTracks; i++)
+                        {
+                            int trackId = selectedTracks[i];
 
-                        if(allTracks->isChecked()){
-                            sendThisTrack = true;
-                        }
-                        else if(selectAllTracks->isChecked()){
-                            bool flag = false;
-                            for(int i = 0; i<noOfTracks; i++){
-                                flag = true;
+                            // if no Track_Request received for this trackId yet
+                            if (!rangeTrkReq.contains(trackId))
+                                continue;
+
+                            double rangeReq = rangeTrkReq[trackId];
+                            double azmReq   = azmTrkReq[trackId];
+                            double eleReq   = eleTrkReq[trackId];
+
+                            bool match =
+                                (pspRange >= rangeReq - 1000 && pspRange <= rangeReq + 1000) &&
+                                (pspAzm   >= azmReq   - 4    && pspAzm   <= azmReq   + 4) &&
+                                (pspEle   >= eleReq   - 4    && pspEle   <= eleReq   + 4);
+
+                            if (match)
+                            {
+                                // ---- Write in same TrackId file ----
+                                if (trackFiles.contains(trackId))
+                                {
+                                    QFile *trackFile = trackFiles[trackId];
+
+                                    QTextStream out(trackFile);
+
+                                    out << "PSP_Data "
+                                        << "TrackId " << trackId
+                                        << " Time: "  << strctPspData.dwell_data.dTime
+                                        << " Range: " << pspRange
+                                        << " Azm: "   << pspAzm
+                                        << " Ele: "   << pspEle
+                                        << "\n";
+                                }
+
+                                // ---- Send to display ----
+                                memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
+
+                                strctDisplayTrackData.msgId   = 0xFD00;
+                                strctDisplayTrackData.trkId   = trackId;
+                                strctDisplayTrackData.trkType = PSP;
+                                strctDisplayTrackData.time    = strctPspData.dwell_data.dTime;
+
+                                oUtility.polarToCartesian(pspRange,
+                                                          pspAzm,
+                                                          pspEle,
+                                                          &dX, &dY, &dZ);
+
+                                strctDisplayTrackData.x = dX;
+                                strctDisplayTrackData.y = dY;
+                                strctDisplayTrackData.z = dZ;
+
+                                if (isPassed)
+                                {
+                                    oDisplaySender.sendToDisplay(strctDisplayTrackData);
+                                }
+
+                                // one PSP report should match only one track
                                 break;
                             }
-                            if(flag == true){
-                                QTextStream out(trackFile);
-                                if(msgID16 == 0xAAA1){
-                                    out<<"SP_Data "<<"Time "<<strctPspData.srch_rpts[r].m_frange
-                                        <<" Azm "<<azmDwl<<" ele "<<eleDwl<<"\n";
-                                }
-                            }
                         }
-                        if(sendThisTrack && filterPassed){
-                            oDisplaySender.sendToDisplay(strctDisplayTrackData);
+                    }
+
+                    // analysis mode existing behavior
+                    if (currentMode == RunMode::Analysis)
+                    {
+                        writePspData(strctPspData, pspOutputFile);
+
+                        if (isPassed)
+                        {
+                            writePspData(strctPspData, subStsOutputFile);
                         }
                     }
                 }
-
-
             }
             break;
 
+            case 0xAA11:      // Track Request
+            {
+                in.readRawData(reinterpret_cast<char*>(&strctTrkReq),
+                               sizeof(Track_Request));
+
+                in.readRawData(reinterpret_cast<char*>(&temp),
+                               sizeof(temp));
+
+                // window filter
+                if (isWithinWindow())
+                {
+                    isPassed = checkWithinWindow(strctTrkReq.range,
+                                                 strctTrkReq.azm,
+                                                 strctTrkReq.ele,
+                                                 strctTrkReq.dTime);
+                }
+                else
+                {
+                    isPassed = true;
+                }
+
+                // Analysis mode existing logic
+                if (currentMode == RunMode::Analysis)
+                {
+                    writeTrackRequestData(strctTrkReq, stsOutputFile);
+
+                    if (isPassed)
+                    {
+                        writeTrackRequestData(strctTrkReq, subStsOutputFile);
+                    }
+                }
+                else if (currentMode == RunMode::Replay)
+                {
+                    int trackId = strctTrkReq.trkId;
+
+                    // -------- Save request values for later PSP matching --------
+                    if (trackFiles.contains(trackId))
+                    {
+                        rangeTrkReq[trackId] = strctTrkReq.range;
+                        azmTrkReq[trackId]   = strctTrkReq.azm;
+                        eleTrkReq[trackId]   = strctTrkReq.ele;
+                    }
+
+                    // -------- Display Data --------
+                    memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
+
+                    strctDisplayTrackData.msgId = 0xFD00;
+                    strctDisplayTrackData.trkId = trackId;
+                    strctDisplayTrackData.time  = strctTrkReq.dTime;
+
+                    oUtility.polarToCartesian(strctTrkReq.range,
+                                              strctTrkReq.azm,
+                                              strctTrkReq.ele,
+                                              &dX, &dY, &dZ);
+
+                    strctDisplayTrackData.x = dX;
+                    strctDisplayTrackData.y = dY;
+                    strctDisplayTrackData.z = dZ;
+
+                    // Track type
+                    if (strctTrkReq.mode == 1)
+                        strctDisplayTrackData.trkType = TrackReqRelook;
+                    else if (strctTrkReq.mode == 2)
+                        strctDisplayTrackData.trkType = TrackReqIQ;
+                    else
+                        strctDisplayTrackData.trkType = TrackReq;
+
+                    // -------- Write in same TrackId file --------
+                    if (trackFiles.contains(trackId))
+                    {
+                        QFile *trackFile = trackFiles[trackId];
+                        QTextStream out(trackFile);
+
+                        out << "Track_Request "
+                            << "TrackId " << trackId << " ";
+
+                        // Mode text
+                        if (strctTrkReq.mode == 1)
+                        {
+                            out << "RLQ ";
+                        }
+                        else if (strctTrkReq.mode == 2)
+                        {
+                            if (strctTrkReq.initCount == 1)
+                                out << "IQ1 ";
+                            else if (strctTrkReq.initCount == 2)
+                                out << "IQ2 ";
+                            else if (strctTrkReq.initCount == 3)
+                                out << "IQ3 ";
+                            else if (strctTrkReq.initCount == 4)
+                                out << "IQ4 ";
+                        }
+                        else if (strctTrkReq.mode == 3)
+                            out << "RFC ";
+                        else if (strctTrkReq.mode == 4)
+                            out << "ACQ ";
+                        else if (strctTrkReq.mode == 5)
+                            out << "DTQ ";
+                        else if (strctTrkReq.mode == 6)
+                            out << "DGQ ";
+                        else if (strctTrkReq.mode == 7)
+                            out << "ADS ";
+                        else if (strctTrkReq.mode == 8)
+                            out << "CAL ";
+
+                        out << "Time: "  << strctTrkReq.dTime
+                            << " Range: " << strctTrkReq.range
+                            << " Azm: "   << strctTrkReq.azm
+                            << " Ele: "   << strctTrkReq.ele
+                            << "\n";
+                    }
+
+                    // -------- Send to display --------
+                    bool sendThisTrack = false;
+
+                    if (allTracks->isChecked())
+                    {
+                        sendThisTrack = true;
+                    }
+                    else if (selectAllTracks->isChecked())
+                    {
+                        sendThisTrack = trackFiles.contains(trackId);
+                    }
+
+                    if (sendThisTrack && isPassed)
+                    {
+                        oDisplaySender.sendToDisplay(strctDisplayTrackData);
+                    }
+                }
+            }
+            break;
                 // ---- ADD YOUR OTHER 10+ CASES HERE ----
                 // case 0xAAAA:
                 // case 0xA801:
@@ -917,13 +1097,8 @@ void BinaryFileReader::onAnalysisMode()
     timeMinEdit->setEnabled(false);
     timeMaxEdit->setEnabled(false);
 }
-bool BinaryFileReader::passFilters(const PSP_DATA &data)
+bool BinaryFileReader::checkWithinWindow(double range, double azm, double ele, double time) const
 {
-    double range = data.srch_rpts[0].m_frange;   // example field
-    double azm   = data.dwell_data.alpha;        // adjust field
-    double ele   = data.dwell_data.beta;
-    double time  = strctLogHdr.m_ulTime;
-
     // Range
     if (chkRange->isChecked())
     {

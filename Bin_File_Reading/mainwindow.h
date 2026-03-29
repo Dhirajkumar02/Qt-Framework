@@ -102,8 +102,8 @@ private:
     // =============================
     // FILTER SYSTEM
     // =============================
-    bool isFilterApplied() const;
-    bool passFilters(const FilterValues &v) const;
+    bool isWithinWindow() const;
+    bool checkWithinWindow(double range, double azm, double ele, double time) const;
     QFile* getAnalysisFile(bool filterPassed);
     double convertRangeToMeters(double value) const;
 
@@ -214,6 +214,7 @@ private:
     PSP_DATA    strctPspData;
     DWELL_DATA  strctDwlData;
     RPTS        strctRpts;
+    Track_Request strctTrkReq;
 
 
     // =============================
@@ -227,7 +228,10 @@ private:
     };
 
     QVector<PspFrame> pspFrames;
-
+    bool isPassed = false;
+    double rangeTrkReq[0];
+    double azmTrkReq[0];
+    double eleTrkReq[0];
 
     // =============================
     // OUTPUT SPEC HELPER
