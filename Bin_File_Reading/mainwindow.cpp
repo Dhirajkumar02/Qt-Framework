@@ -553,94 +553,112 @@ void BinaryFileReader::analysisFile()
                     double pspAzm   = strctPspData.srch_rpts[r].m_fDelAlpha;
                     double pspEle   = strctPspData.srch_rpts[r].m_fDelBeta;
 
-                    // optional window filter
-                    if (allTracks->isChecked())
+                    // window filter
+                    if (isWithinWindow())
                     {
-                        if (isWithinWindow())
-                        {
-                            isPassed = checkWithinWindow(pspRange,
-                                                         pspAzm,
-                                                         pspEle,
-                                                         strctPspData.dwell_data.dTime);
-                        }
-                        else
-                        {
-                            isPassed = true;
-                        }
+                        isPassed = checkWithinWindow(pspRange,
+                                                     pspAzm,
+                                                     pspEle,
+                                                     strctPspData.dwell_data.dTime);
                     }
                     else
                     {
                         isPassed = true;
                     }
 
-                    // Replay mode only
-                    if (currentMode == RunMode::Replay && selectAllTracks->isChecked())
+                    if (currentMode == RunMode::Replay && isPassed)
                     {
-                        // check all selected Track_Request IDs
-                        for (int i = 0; i < noOfTracks; i++)
+                        // -------- allTracks case --------
+                        if (allTracks->isChecked())
                         {
-                            int trackId = selectedTracks[i];
+                            memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
 
-                            // if no Track_Request received for this trackId yet
-                            if (!rangeTrkReq.contains(trackId))
-                                continue;
+                            strctDisplayTrackData.msgId   = 0xFD00;
+                            strctDisplayTrackData.trkId   = 0;      // PSP me real trackId nahi hai
+                            strctDisplayTrackData.trkType = PSP;
+                            strctDisplayTrackData.time    = strctPspData.dwell_data.dTime;
 
-                            double rangeReq = rangeTrkReq[trackId];
-                            double azmReq   = azmTrkReq[trackId];
-                            double eleReq   = eleTrkReq[trackId];
+                            oUtility.polarToCartesian(pspRange,
+                                                      pspAzm,
+                                                      pspEle,
+                                                      &dX, &dY, &dZ);
 
-                            bool match =
-                                (pspRange >= rangeReq - 1000 && pspRange <= rangeReq + 1000) &&
-                                (pspAzm   >= azmReq   - 4    && pspAzm   <= azmReq   + 4) &&
-                                (pspEle   >= eleReq   - 4    && pspEle   <= eleReq   + 4);
+                            strctDisplayTrackData.x = dX;
+                            strctDisplayTrackData.y = dY;
+                            strctDisplayTrackData.z = dZ;
 
-                            if (match)
+                            oDisplaySender.sendToDisplay(strctDisplayTrackData);
+                        }
+
+                        // -------- selected tracks case --------
+                        else if (selectAllTracks->isChecked())
+                        {
+                            for (int i = 0; i < noOfTracks; i++)
                             {
-                                // ---- Write in same TrackId file ----
-                                if (trackFiles.contains(trackId))
+                                int trackId = selectedTracks[i];
+
+                                // Track_Request abhi tak receive nahi hua
+                                if (!rangeTrkReq.contains(trackId))
+                                    continue;
+
+                                double rangeReq = rangeTrkReq[trackId];
+                                double azmReq   = azmTrkReq[trackId];
+                                double eleReq   = eleTrkReq[trackId];
+
+                                bool match =
+                                    (pspRange >= rangeReq - 1000 &&
+                                     pspRange <= rangeReq + 1000) &&
+
+                                    (pspAzm >= azmReq - 4 &&
+                                     pspAzm <= azmReq + 4) &&
+
+                                    (pspEle >= eleReq - 4 &&
+                                     pspEle <= eleReq + 4);
+
+                                if (match)
                                 {
-                                    QFile *trackFile = trackFiles[trackId];
+                                    // write in same track file
+                                    if (trackFiles.contains(trackId))
+                                    {
+                                        QFile *trackFile = trackFiles[trackId];
+                                        QTextStream out(trackFile);
 
-                                    QTextStream out(trackFile);
+                                        out << "PSP_Data "
+                                            << "TrackId " << trackId
+                                            << " Time: "  << strctPspData.dwell_data.dTime
+                                            << " Range: " << pspRange
+                                            << " Azm: "   << pspAzm
+                                            << " Ele: "   << pspEle
+                                            << "\n";
+                                    }
 
-                                    out << "PSP_Data "
-                                        << "TrackId " << trackId
-                                        << " Time: "  << strctPspData.dwell_data.dTime
-                                        << " Range: " << pspRange
-                                        << " Azm: "   << pspAzm
-                                        << " Ele: "   << pspEle
-                                        << "\n";
-                                }
+                                    // send matched PSP with that TrackId
+                                    memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
 
-                                // ---- Send to display ----
-                                memset(&strctDisplayTrackData, 0, sizeof(strctDisplayTrackData));
+                                    strctDisplayTrackData.msgId   = 0xFD00;
+                                    strctDisplayTrackData.trkId   = trackId;
+                                    strctDisplayTrackData.trkType = PSP;
+                                    strctDisplayTrackData.time    = strctPspData.dwell_data.dTime;
 
-                                strctDisplayTrackData.msgId   = 0xFD00;
-                                strctDisplayTrackData.trkId   = trackId;
-                                strctDisplayTrackData.trkType = PSP;
-                                strctDisplayTrackData.time    = strctPspData.dwell_data.dTime;
+                                    oUtility.polarToCartesian(pspRange,
+                                                              pspAzm,
+                                                              pspEle,
+                                                              &dX, &dY, &dZ);
 
-                                oUtility.polarToCartesian(pspRange,
-                                                          pspAzm,
-                                                          pspEle,
-                                                          &dX, &dY, &dZ);
+                                    strctDisplayTrackData.x = dX;
+                                    strctDisplayTrackData.y = dY;
+                                    strctDisplayTrackData.z = dZ;
 
-                                strctDisplayTrackData.x = dX;
-                                strctDisplayTrackData.y = dY;
-                                strctDisplayTrackData.z = dZ;
-
-                                if (isPassed)
-                                {
                                     oDisplaySender.sendToDisplay(strctDisplayTrackData);
-                                }
 
-                                // one PSP report should match only one track
-                                break;
+                                    // ek PSP ko sirf ek trackId assign karo
+                                    break;
+                                }
                             }
                         }
                     }
 
-                    // analysis mode existing behavior
+                    // Analysis mode
                     if (currentMode == RunMode::Analysis)
                     {
                         writePspData(strctPspData, pspOutputFile);
