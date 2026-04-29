@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/qt/qml/GridLayout_Example/">
+    <file alias="Main.qml">E:/Qt Framework/GridLayout_Example/Main.qml</file>
+  </qresource>
+</RCC>
+

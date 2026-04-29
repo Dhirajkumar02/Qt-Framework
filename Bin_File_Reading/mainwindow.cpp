@@ -1159,3 +1159,42 @@ bool BinaryFileReader::checkWithinWindow(double range, double azm, double ele, d
 
     return true;   // passed all filters
 }
+
+
+void BinaryFileReader::checkDwellCount(){
+    if(pspFrames.size() > 1){
+        QString msg;
+        QTextStream out(&analysisFile);
+        quint32 prevDwellCount = pspFrames[0].psp.dwell_data.Dwell_count;
+        for (int i = 1; i < pspFrames.size(); ++i) {
+            quint32 currDwellCount = pspFrames[i].psp.dwell_data.Dwell_count;
+            quint32 diff = currDwellCount - prevDwellCount;
+            if(diff != 1){
+                if(diff != -65535)
+                    continue;
+                if(currDwellCount == prevDwellCount){
+                    msg = QString("Duplicate Dwell_Count: %1 %2 %3").arg(currDwellCount).arg(prevDwellCount).arg(diff);
+                    if(currentMode == RunMode::Analysis)
+                    {
+                        out<<"\n"<<msg;
+                    }
+                }
+                else if(currDwellCount == prevDwellCount + 2){
+                    msg = QString("Missing Dwell Count : %1 %2 %3").arg(currDwellCount).arg(prevDwellCount).arg(diff);
+                    if(currentMode == RunMode::Analysis){
+                        out<<"\n"<<msg;
+                    }
+                }
+                else{
+                    msg = QString("Missed number of Dwell Count : %1").arg(currDwellCount);
+                    if(currentMode == RunMode::Analysis){
+                        out<<"\n"<<msg;
+                    }
+                }
+            }
+            missingListWidget->addItem(new QListWidgetItem(msg));
+            prevDwellCount = currDwellCount;
+        }
+
+    }
+}
